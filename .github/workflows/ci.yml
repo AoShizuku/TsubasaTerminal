@@ -1,0 +1,63 @@
+# CI —— 推送与 PR 跑静态检查和三层快速测试。
+#
+# **不跑 e2e**：Playwright 要拉起真的 Electron 窗口，且 CLI 回归依赖 Windows 命名管道
+# （`\\.\pipe\`）。e2e 在本地跑，合回 main 前必须全绿（见 CONTRIBUTING.md）。
+#
+# 只声明 branches、不声明 tags，故推 tag 不触发本工作流（出包走 release.yml）。
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    name: 静态检查与快速测试
+    runs-on: ubuntu-latest
+    env:
+      # 类型检查与 Vitest 不需要 Electron 二进制
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      # 分开跑，红的时候一眼看出是哪一层——`npm run typecheck` 是前五条的串联
+      - name: 主进程类型检查
+        run: npm run typecheck:node
+
+      - name: 渲染进程类型检查
+        run: npm run typecheck:web
+
+      - name: 测试代码类型检查
+        run: npm run typecheck:test
+
+      - name: 循环依赖守卫
+        run: npm run check:cycles
+
+      # 改了依赖却没重跑 gen:notices 时红
+      - name: 第三方许可清单
+        run: npm run check:notices
+
+      - name: 单元测试
+        run: npm run test:unit
+
+      # 本地 HTTP/文件系统/状态机合约；不启动 Electron，也不依赖 Windows 命名管道
+      - name: 主进程集成测试
+        run: npm run test:integration
+
+      # jsdom + Vue Test Utils，覆盖组件状态和交互，不拉起 Chromium/Electron
+      - name: Vue 组件测试
+        run: npm run test:component

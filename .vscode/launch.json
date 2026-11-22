@@ -1,0 +1,70 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 直接用 node 跑 electron-vite 的 JS 入口，不经过 npm.cmd / cmd.exe。
+      // 调试会话严格绑定这一个 node 进程；electron 退出 → electron-vite
+      // process.exit → 会话自动结束，不用手动点停止。
+      "name": "Electron: 主进程",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/node_modules/electron-vite/bin/electron-vite.js",
+      "args": ["dev", "--sourcemap", "--remoteDebuggingPort", "9222"],
+      "console": "integratedTerminal",
+      // 让 js-debug 顺着 NODE_OPTIONS 钩住 electron 主进程，src/main 断点才会命中
+      "autoAttachChildProcesses": true,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Electron: 渲染进程",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/src/renderer",
+      "timeout": 60000,
+      "presentation": { "hidden": true }
+    },
+    {
+      // 用 node 类型 + runtimeExecutable=npm，终端进程就是 npm 本身，
+      // 命令跑完即退出、调试会话自动结束（node-terminal 起的是常驻 shell，
+      // 命令结束后还在等下一条输入，会话得手动 shift+F5 才停，故不用它）。
+      // autoAttach 让 playwright 与被它拉起的 electron 主进程都挂上调试器，
+      // e2e/*.spec.ts 与 src/main/** 的断点都能命中。
+      // 只想快速重跑、out/ 已最新时，把 test:e2e 换成 test:e2e:nobuild。
+      "name": "E2E: 全量测试 (test:e2e)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test:e2e"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      // 打包只是跑任务，不需要调试器：noDebug 让 js-debug 完全不介入，
+      // 既不往 electron-builder 的一串子进程（7z/nsis/rcedit）注入 bootloader，
+      // 也让 npm 退出时会话干净收场。产物在 dist/。
+      "name": "打包: Windows 安装包 (build:win)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "build:win"],
+      "console": "integratedTerminal",
+      "noDebug": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Electron: Debug app",
+      "configurations": ["Electron: 主进程", "Electron: 渲染进程"],
+      "stopAll": true
+    }
+  ]
+}

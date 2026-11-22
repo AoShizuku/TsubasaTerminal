@@ -1,0 +1,4 @@
+# 工作流的 `run:` 块是丢给 Linux bash 跑的脚本，混进 CR 会静默变成
+# `$'\r': command not found`——日志里看不出是行尾问题。钉死比靠 core.autocrlf 可靠。
+# 范围只圈 .github/workflows/，不动 electron-builder.yml 等既有 yml，避免整树重新归一。
+.github/workflows/*.yml text eol=lf

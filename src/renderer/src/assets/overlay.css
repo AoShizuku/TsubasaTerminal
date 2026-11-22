@@ -1,0 +1,288 @@
+/* ============================================================
+   浮层：对话框外壳、对话框内的 tab 条、设置窗左导航与设置行
+   移植自姊妹项目 TsubasaRedisManager 的 src/styles/overlay.css。
+
+   定位交给 reka-ui（DialogContent 自己居中），这里只管外观。
+   同样写在 @layer components，理由见 controls.css 头部。
+   ============================================================ */
+
+@layer components {
+  /* ── 对话框 ───────────────────────────────────────────── */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    /* 透明度真值在 composables/useDialogScrim 的 DIALOG_SCRIM_OPACITY，由 Dlg 内联
+       下发，原生窗口按钮按同一个值预合成。这里的兜底只防"少带变量"：没有它，
+       var() 解析失败会让整条 background 失效，遮罩静默变成全透明 */
+    background: rgb(0 0 0 / var(--scrim-opacity, 0.58));
+    z-index: 40;
+  }
+  .dlg {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 41;
+    background: var(--card);
+    color: var(--fg);
+    border: 1px solid var(--bd-strong);
+    border-radius: var(--r-10);
+    box-shadow: var(--sh-3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: var(--fs-13);
+    /* 最小窗口是 960×600（main/index.ts），比姊妹项目的假设小；
+       固定高度会在最小窗口下被裁掉页脚，所以一律给上界而不是定高 */
+    max-width: calc(100vw - 64px);
+    max-height: calc(100vh - 56px);
+  }
+  /* 确认框压在其他弹窗之上：经验编辑器上的"放弃修改？"不能靠挂载先后 */
+  .scrim.is-top {
+    z-index: 50;
+  }
+  .dlg.is-top {
+    z-index: 51;
+  }
+  .dlg-hd {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 12px 16px;
+    border-bottom: 1px solid var(--bd);
+  }
+  .dlg-hd h3 {
+    font-size: var(--fs-14);
+    font-weight: 600;
+    letter-spacing: -0.15px;
+    color: var(--fg);
+  }
+  .dlg-hd p {
+    font-size: var(--fs-11);
+    color: var(--fg-3);
+    margin-top: 1px;
+  }
+  .dlg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .dlg-ft {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--bd);
+    background: var(--bg-subtle);
+  }
+
+  /* ── 确认框（ui/ConfirmDlg）──────────────────────────── */
+  .confirm-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .confirm-msg {
+    font-size: var(--fs-13);
+    line-height: 1.6;
+    color: var(--fg);
+    white-space: pre-wrap;
+  }
+  /* 原样看清的内容（URL、粘贴预览）：完整换行不截断——截成省略号正好方便伪装 */
+  .confirm-detail {
+    max-height: 168px;
+    overflow: auto;
+    padding: 8px 10px;
+    font-family: var(--ff-mono);
+    font-size: var(--fs-11);
+    line-height: 1.55;
+    color: var(--fg-2);
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: var(--bg-subtle);
+    border: 1px solid var(--bd);
+    border-radius: var(--r-6);
+    user-select: text;
+  }
+
+  .dlg-tabs {
+    flex: none;
+    display: flex;
+    gap: 2px;
+    padding: 0 12px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--bd);
+  }
+  .dlg-tab {
+    height: 34px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-12);
+    color: var(--fg-3);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .dlg-tab:hover {
+    color: var(--fg);
+  }
+  .dlg-tab.is-active {
+    color: var(--fg);
+    font-weight: 500;
+    border-bottom-color: var(--ring);
+  }
+  .dlg-tab .tag {
+    height: 16px;
+    font-size: var(--fs-10);
+    padding: 0 4px;
+  }
+  .dlg-split {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  /* 设置窗要一个**首选**高度而不是定高：960×600 的最小窗口下
+     560px 会连页脚一起被裁（.dlg 的上界是 100vh−56，再减去头部约 51px）。 */
+  .set-split {
+    height: min(560px, calc(100vh - 120px));
+  }
+
+  /* ── 设置窗 ───────────────────────────────────────────── */
+  .set-nav {
+    width: 172px;
+    flex: none;
+    padding: 8px;
+    border-right: 1px solid var(--bd);
+    background: var(--bg-subtle);
+    overflow: auto;
+  }
+  .set-nav-item {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    border-radius: var(--r-6);
+    font-size: var(--fs-12);
+    color: var(--fg-3);
+    background: transparent;
+    border: 0;
+    width: 100%;
+    text-align: left;
+  }
+  .set-nav-item:hover {
+    background: var(--bg-active);
+    color: var(--fg);
+  }
+  .set-nav-item.is-active {
+    background: color-mix(in oklab, var(--ring) 18%, var(--background));
+    color: var(--fg);
+    font-weight: 500;
+  }
+  .set-nav-item.is-active svg {
+    color: var(--ring);
+  }
+  .set-body {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    padding: 16px 20px 26px;
+  }
+  .set-body h3 {
+    font-size: var(--fs-14);
+    font-weight: 600;
+    letter-spacing: -0.15px;
+    color: var(--fg);
+  }
+  .set-body > .lead {
+    font-size: var(--fs-11);
+    color: var(--fg-3);
+    margin-top: 2px;
+    margin-bottom: 6px;
+  }
+  .set-group {
+    margin-top: 14px;
+  }
+  .set-group > .cap {
+    padding-bottom: 2px;
+  }
+
+  /*
+   * 一条设置项 = 左「标题 + 一句说明」/ 右「控件」。
+   * 说明限一句是这套版式的前提：它一旦长回段落，右侧控件就被推成小字的陪衬，
+   * 整个弹窗又会退回 v0.12 那种"六成面积是灰色小字"的样子。
+   * 后果、风险、不可绕过的限制去 .banner。
+   */
+  .srow {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--bd);
+  }
+  .srow:last-child {
+    border-bottom: 0;
+  }
+  .srow-txt {
+    min-width: 0;
+  }
+  .srow-txt b {
+    display: block;
+    font-size: var(--fs-12);
+    font-weight: 500;
+    color: var(--fg);
+  }
+  .srow-txt p {
+    font-size: var(--fs-11);
+    color: var(--fg-3);
+    line-height: 1.55;
+    margin-top: 2px;
+  }
+  /* 需要人处理的附注（如 Codex skill 旧落点有保留文件），配色同 tag-warn */
+  .srow-txt p.is-warn {
+    color: var(--warn-fg);
+  }
+  .srow-txt code {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-10);
+    color: var(--fg-2);
+  }
+  .srow-ctl {
+    margin-left: auto;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* 从属项：CLI 的两个 skill 挂在总开关下面，缩进表达从属 */
+  .srow.is-child {
+    padding-left: 22px;
+  }
+  .srow.is-disabled .srow-txt b,
+  .srow.is-disabled .srow-txt p {
+    color: var(--fg-4);
+  }
+
+  /* 「关于」里的清单：名字左、值右，比 .srow 紧凑——通读用的，不是可操作项 */
+  .credits {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    gap: 1px 14px;
+    margin-top: 6px;
+  }
+  .credits dt {
+    font-size: var(--fs-11);
+    color: var(--fg-2);
+  }
+  .credits dd {
+    font-size: var(--fs-11);
+    color: var(--fg-4);
+  }
+}

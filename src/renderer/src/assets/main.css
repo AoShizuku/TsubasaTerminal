@@ -1,0 +1,382 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * v0.13.0 控件层。令牌表与类名沿用姊妹项目 TsubasaRedisManager
+ * （`src/styles/{tokens,controls,overlay}.css`），两边可以逐行对读；
+ * 差别在色温与来源——它固定浅色；我们的明暗随终端配色方案走（v0.14.3 起有亮色），
+ * 表面色是从终端底色**派生**的（见 shared/shellPalette.ts），不是写死的 hex。
+ * 设计论证见 doc/tsubasa-alignment.md。
+ */
+@import './controls.css';
+@import './overlay.css';
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+/* ── v0.13.0 控件层令牌：不随主题派生的那一半 ─────────────────────────
+   派生的那一半（表面阶梯 --bg-subtle/--bg-active/--bd*、四级文字 --fg..--fg-4、
+   控件面 --bg-ctl*、--knob）由 shared/shellPalette.ts 派生、lib/appTheme.ts 写成
+   documentElement 的内联变量，优先级天然更高；下面 .dark 里的同名值只是
+   applyAppTheme 跑起来之前那一帧的兜底。按明暗换值的固定色见 :root:not(.dark)。 */
+:root {
+  /*
+   * 字体栈与姊妹项目同表。Inter / JetBrains Mono **不随包打包**：
+   * 姊妹项目也只是排在栈首，没装的机器落到 Segoe UI / Cascadia Mono，两边行为一致。
+   *
+   * --ff-mono 是 UI 里的等宽（审批卡命令、路径、徽标数字），**与终端网格无关**——
+   * 终端走 shared/terminalThemes.ts 的 FONT_FALLBACK_STACK，那条栈有 CJK 全宽对齐的
+   * 硬要求，不要拿这里的值去动它。栈尾必须有中文字体：常见等宽字体都不带 CJK，
+   * 中文会穿透整条栈落到 generic monospace，Windows 简中下是宋体，与界面黑体并排很扎眼。
+   * Sarasa 排在黑体前，装了就拿到严格 2:1。
+   */
+  --ff-ui:
+    'Inter', 'Inter Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system,
+    'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', sans-serif;
+  --ff-mono:
+    'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Menlo, Consolas, ui-monospace, 'Sarasa Mono SC',
+    'PingFang SC', 'Microsoft YaHei UI', monospace;
+
+  /*
+   * 字号七档，13 为弹窗正文（与姊妹项目同表）。
+   *
+   * 界面字号三档：--fs-step 由 :root[data-ui-font-size] 设为 0 / 1 / 2px，
+   * 整张表同步平移，角色之间的级差不变。**变量名是标准档的档名**——大档下 --fs-12
+   * 实际是 13px，组件照旧按角色写，不感知档位。为什么是平移而不是缩放：
+   * 运维全屏干活时外壳 12/11px 相对终端（用户自己调到 14–16px）显小，要补的是
+   * 小字的可读性，按比例缩放会让标题一起放大一截而小字只多半像素。
+   */
+  --fs-step: 0px;
+  --fs-10: calc(10px + var(--fs-step));
+  --fs-11: calc(11px + var(--fs-step));
+  --fs-12: calc(12px + var(--fs-step));
+  --fs-13: calc(13px + var(--fs-step));
+  --fs-14: calc(14px + var(--fs-step));
+  --fs-16: calc(16px + var(--fs-step));
+  --fs-20: calc(20px + var(--fs-step));
+  /* 等宽半号（不算第八档）：同层界面字体减 0.5px，见下方 @theme 的 text-code */
+  --fs-code: calc(11.5px + var(--fs-step));
+  --fs-code-body: calc(12.5px + var(--fs-step));
+
+  /* 控件高度两档 */
+  --h-ctl: 28px;
+  --h-ctl-sm: 24px;
+
+  /* 行高（v0.14.2 抽成变量，供密度三档覆盖）：文件行定高；主机行两行字，给上下留白。
+     文件行随界面字号每档 +2px：text-list 行高是字号的 4/3，特大档 14px 字
+     行盒 18.7px，紧凑档的 18px 定高装不下 */
+  --h-tree-base: 20px;
+  --h-tree: calc(var(--h-tree-base) + 2 * var(--fs-step));
+  --py-host: 8px;
+
+  --r-4: 4px;
+  --r-6: 6px;
+  --r-8: 8px;
+  --r-10: 10px;
+
+  /* 暗色下的投影要比浅色重得多：浅色靠 6% 黑就能"浮起来"，
+     暗色里那个量级完全看不见，浮层与底面会糊成一片 */
+  --sh-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --sh-2: 0 2px 8px rgb(0 0 0 / 0.36), 0 0 0 1px rgb(0 0 0 / 0.2);
+  --sh-3: 0 16px 40px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.4);
+  /* 原生 select 弹层（v0.14.3 从 base 层写死的值收成令牌，暗色值不变） */
+  --sh-pop: 0 8px 24px rgb(0 0 0 / 0.4);
+
+  /*
+   * 语义色：**固定值，不派生**。
+   *
+   * 表面与文字派生自终端底色（主题贯穿），但语义色不能——若从方案的 ANSI
+   * green/yellow 取，Gruvbox 的橄榄绿 #98971a 就成了我们的"成功"色，
+   * 八套主题 × 三个语义 = 24 组对比度要逐一重验，而它们
+   * 表达的是"这条信息是好是坏"，本来就不该随配色方案漂移。
+   *
+   * 每个语义两级，对应姊妹项目浅色下"深色文字压浅色底"的那对关系，暗色下反过来：
+   *   --x     中间调：开关开启态、徽标边框、图标、进度条（UI 组件，WCAG 线是 3:1）
+   *   --x-fg  亮调：banner 与 tag 的**文字**（正文，按 4.5:1 收）
+   * 实测最差主题是 Nord（它的 card 阶最亮）：banner 文字 ≥4.96:1，tag 文字 ≥4.93:1。
+   */
+  --ok: #5fbf80;
+  --ok-fg: #9ee0b4;
+  --warn: #d9a441;
+  --warn-fg: #ecc98a;
+  --danger: #ef6a72;
+  --danger-fg: #ffa8ae;
+
+  /*
+   * v0.14.3 把组件里散写的 Tailwind 调色板色收进令牌（亮色主题的前置）：
+   *   --info      进行中、提示性的蓝（原 sky-500，暗色值不变）
+   *   --env-prod  生产环境橙（原 orange-500，暗色值不变）：色点、顶缘光条
+   *   --env-exp   实验环境天蓝（原 sky-500，暗色值不变）：色点
+   *   --env-*-fg  环境徽标与"生产"字样的文字。暗色与上面同值；亮色下光条要的是
+   *               "还是橙色"，文字要的是 4.5:1，一个值兼顾不了，分两级
+   * 组件里写 text-ok / bg-warn/15 / bg-env-prod 这类类名，不写 emerald-500 等色号
+   * （tests/unit/designTokens 守着）。行内状态字直接用中间调 --x；
+   * 只有压在有色底上的长文字（banner、tag）才用 --x-fg。
+   */
+  --info: #0ea5e9;
+  --env-prod: #f97316;
+  --env-prod-fg: #f97316;
+  --env-exp: #0ea5e9;
+  --env-exp-fg: #0ea5e9;
+}
+
+/*
+ * 亮色：applyAppTheme 按方案底色摘掉 <html> 的 dark class 后生效。
+ * 表面与文字仍是派生的（内联变量），这里只给**不派生的固定色**换一套亮底的值——
+ * 语义色"不随配色方案漂移"的原则不变，只是明暗各一套。
+ *
+ * 语义色在亮色下合成一级（--x 与 --x-fg 同值），同姊妹项目"深色文字压浅色底"：
+ * 行内状态字（text-ok）、徽标（bg-ok/15 text-ok）、banner 都要 4.5:1，暗色那种
+ * "中间调做组件、亮调做文字"的分工在亮底上没有余地。取值判据是三套亮色锚点
+ * （Latte / One Half Light / 纯白）里最差的那处：放文字最暗的 muted 底 ≥5.0:1、
+ * 15% 色底上 ≥4.7:1。Tailwind 的 -700 档在 Latte 底上只有 3.9:1，故取 -800 档。
+ *
+ * 环境色两级：光条与色点只要非文字的 3:1（取 orange-700 / sky-700，最差 4.07 / 4.66，
+ * 仍读作橙与蓝），文字取 -800 档。阴影与遮罩取姊妹项目浅色的量级。
+ */
+:root:not(.dark) {
+  --sh-1: 0 1px 2px rgb(20 20 30 / 0.06);
+  --sh-2: 0 2px 8px rgb(20 20 30 / 0.08), 0 0 0 1px rgb(20 20 30 / 0.04);
+  --sh-3: 0 12px 32px rgb(20 20 30 / 0.14), 0 2px 8px rgb(20 20 30 / 0.08);
+  --sh-pop: 0 8px 24px rgb(20 20 30 / 0.12), 0 0 0 1px rgb(20 20 30 / 0.04);
+
+  --ok: #166534;
+  --ok-fg: #166534;
+  --warn: #92400e;
+  --warn-fg: #92400e;
+  --danger: #991b1b;
+  --danger-fg: #991b1b;
+  --destructive: #991b1b;
+  --destructive-foreground: #ffffff;
+  --info: #075985;
+  --env-prod: #c2410c;
+  --env-prod-fg: #9a3412;
+  --env-exp: #0369a1;
+  --env-exp-fg: #075985;
+}
+
+/* 密度三档（同姊妹项目 :root[data-density]）：只改行高与控件高，不改字号。
+   data-density 由 App.vue 按设置写到 <html> 上；标准档就是上面 :root 的值 */
+:root[data-density='compact'] {
+  --h-tree-base: 18px;
+  --py-host: 4px;
+  --h-ctl: 26px;
+}
+:root[data-density='cozy'] {
+  --h-tree-base: 24px;
+  --py-host: 12px;
+  --h-ctl: 30px;
+}
+
+/* 界面字号三档：标准档就是上面 :root 的 0px。data-ui-font-size 由 App.vue
+   按设置写到 <html> 上，与密度互相独立 */
+:root[data-ui-font-size='large'] {
+  --fs-step: 1px;
+}
+:root[data-ui-font-size='larger'] {
+  --fs-step: 2px;
+}
+
+.dark {
+  /* applyAppTheme 跑起来前的兜底（= tsubasaterminal 默认方案的派生值） */
+  --bg-subtle: #25272f;
+  --bg-active: #2f3139;
+  --bd: #353840;
+  --bd-strong: #454750;
+  --fg: #b9bec9;
+  --fg-2: #a3a8b2;
+  --fg-3: #8d929d;
+  --fg-4: #70747e;
+  --bg-ctl: #292b33;
+  --bg-ctl-on: #2f3139;
+  --knob: #b9bec9;
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  /* Tailwind 的 font-sans（preflight 的 html 默认字体）与 font-mono 接到同一套栈，
+     不留 Tailwind 自带的第二套等宽栈 */
+  --font-sans: var(--ff-ui);
+  --font-mono: var(--ff-mono);
+
+  /*
+   * 字号按**角色**取（与姊妹项目 visual-language「字号档位」同表）：
+   * 组件里只写角色类，不写 text-xs / text-[10px] 这类像素值（tests/unit/designTokens 守着）。
+   *   text-badge  10  徽标、计数、快捷键
+   *   text-meta   11  说明文字、元数据、状态、时间戳
+   *   text-list   12  列表 / 树 / 标签页 / 工具条 / 控件里的文字
+   *   text-body   13  正文：成段阅读的文字（Agent 消息、弹窗正文），也是 body 默认
+   *   text-title  14  面板与弹窗标题
+   * 等宽数据比同层界面字体小半号（JetBrains Mono 视觉高度略大于 Inter）：
+   *   text-code 11.5 = 列表层的等宽；text-code-body 12.5 = 正文里的等宽
+   */
+  --text-badge: var(--fs-10);
+  --text-badge--line-height: 1.5;
+  --text-meta: var(--fs-11);
+  --text-meta--line-height: 1.5;
+  --text-list: var(--fs-12);
+  --text-list--line-height: calc(16 / 12);
+  --text-code: var(--fs-code);
+  --text-code--line-height: calc(16 / 11.5);
+  --text-body: var(--fs-13);
+  --text-body--line-height: 1.5;
+  --text-code-body: var(--fs-code-body);
+  --text-code-body--line-height: 1.5;
+  --text-title: var(--fs-14);
+  --text-title--line-height: calc(20 / 14);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* 语义色、环境色登记为 Tailwind 颜色：值随明暗切换，组件只写名字 */
+  --color-ok: var(--ok);
+  --color-ok-fg: var(--ok-fg);
+  --color-warn: var(--warn);
+  --color-warn-fg: var(--warn-fg);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-info: var(--info);
+  --color-env-prod: var(--env-prod);
+  --color-env-prod-fg: var(--env-prod-fg);
+  --color-env-exp: var(--env-exp);
+  --color-env-exp-fg: var(--env-exp-fg);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+  /* 亮色方案：原生滚动条、select 弹层、表单控件跟着翻成浅色 */
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  /* 没写字号的文字默认就是正文 13（同姊妹项目）；之前继承浏览器的 16px */
+  body {
+    @apply bg-background text-foreground text-body overflow-hidden;
+  }
+
+  /* 原生 select 弹出列表在暗色主题下反色（选中项亮蓝高亮）：
+     接管为 customizable select（Chromium 134+），弹层配色跟随主题变量。
+     不支持 base-select 时按原生弹层降级，option 底色仍走主题色。 */
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select::picker(select) {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    margin-block: 4px;
+    padding: 4px;
+    box-shadow: var(--sh-pop);
+    /* UA 默认 most-block-size 会往空间大的一侧开（常见为向上）；改回向下优先、放不下才翻转 */
+    position-try-order: normal;
+  }
+
+  select::picker-icon {
+    content: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    /* content:url 的图是行内替换元素、坐在基线上：pseudo 盒高 = 图高 + strut descent
+       （12px 字号实测 14→16.86px），flex 居中居的是这个偏高的盒 → 箭头比中线高 ~1.4px。
+       line-height:0 收掉 strut，盒塌回图的 14px，才是真居中 */
+    line-height: 0;
+  }
+  /* 亮底上 #a3a3a3 的箭头只有 2.5:1；content:url 拿不到 currentColor，只能换一张 */
+  html:not(.dark) select::picker-icon {
+    content: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  }
+
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    border-radius: calc(var(--radius) - 4px);
+    padding: 4px 8px;
+  }
+
+  select option:hover,
+  select option:focus {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+    outline: none;
+  }
+
+  select option:checked {
+    background-color: var(--accent);
+  }
+
+  select option::checkmark {
+    display: none;
+  }
+}

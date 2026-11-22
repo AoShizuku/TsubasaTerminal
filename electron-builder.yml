@@ -1,0 +1,49 @@
+appId: com.tsubasaterminal.app
+productName: Tsubasa Terminal
+directories:
+  buildResources: build
+# 白名单：只收运行时要的 out/ 与 package.json；生产依赖由 electron-builder
+# 按依赖树另行收进 node_modules，不受这里影响。不要改回排除清单：默认的 `**/*`
+# 会把仓库根的 doc/、tests/、scripts/ 以及本地未跟踪文件全收进 app.asar。
+# out/ 也只点名三个构建目录：electron-vite 不清 out/ 根，本地调试留下的探针脚本、
+# 截图与日志会一直堆在那里。CLI 产物 out/cli 走 extraResources 落 asar 外（见下）
+files:
+  - out/main/**
+  - out/preload/**
+  - out/renderer/**
+  - package.json
+asarUnpack:
+  - '**/*.node'
+# CLI 通道：tsubasa-ssh.js 放 asar 外，由 shim 以
+# ELECTRON_RUN_AS_NODE=1 跑 TsubasaTerminal.exe 加载——不赌 RUN_AS_NODE 下的 asar 补丁行为。
+# 将来配 fuses 加固时 runAsNode 必须保持开启，关了 CLI 就死。
+extraResources:
+  - from: out/cli/tsubasa-ssh.js
+    to: cli/tsubasa-ssh.js
+  # 许可：本程序许可 + 第三方清单与全文（scripts/gen-notices.mjs 生成）。
+  # MIT/ISC/BSD 要求分发时附带版权与许可文本，放 resources/ 与安装包同发；
+  # Electron/Chromium 那层由 electron-builder 自带的 LICENSE.electron.txt /
+  # LICENSES.chromium.html 承担（落在 exe 同级）。设置→关于按这三个路径指引用户
+  - from: LICENSE
+    to: LICENSE
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: THIRD_PARTY_LICENSES.txt
+    to: THIRD_PARTY_LICENSES.txt
+win:
+  executableName: TsubasaTerminal
+  target:
+    - nsis
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+npmRebuild: false
+# 显式关掉发布配置，**别删**：不写这条，electron-builder 会从 git remote 猜一个
+# 发布目标并生成 update 信息；本项目由 release 工作流自己上传 Release 附件。
+# 与 build:win 的 `--publish never` **是两回事，两条都要**：那个管发布*策略*
+# （要不要上传），这个管发布*配置*（有没有目标）——只关策略拦不住猜测。
+publish: null

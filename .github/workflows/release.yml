@@ -1,0 +1,111 @@
+# CD —— main 上打 `v*` tag 触发 Windows 出包，并发布为 GitHub Release。
+#
+# 产物名来自 electron-builder.yml 的 `${name}-${version}-setup.${ext}`，取 package.json
+# 的版本号。tag 名与它**必须一致**，由 guard 校验——不一致就是"忘了 bump 版本号"，
+# 放过去会产出 Release 名与安装包版本错位、"关于"里显示旧版本的包。
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  # tag 必须落在 main 上才出包。on.push.tags 没法按分支过滤，
+  # 只能判断 tag 指向的 commit 是不是 main 的祖先（或就是 main 顶端）。
+  # 单独一个 job：不合规的 tag 不去启动 Windows runner。
+  guard:
+    name: 校验 tag
+    runs-on: ubuntu-latest
+    outputs:
+      on_main: ${{ steps.contained.outputs.on_main }}
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+        with:
+          # merge-base 需要完整历史，浅克隆会误判
+          fetch-depth: 0
+
+      - name: 判断 tag 是否被 main 包含
+        id: contained
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if git merge-base --is-ancestor HEAD refs/remotes/origin/main; then
+            echo "on_main=true" >> "$GITHUB_OUTPUT"
+            echo "tag $GITHUB_REF_NAME 在 main 上，继续出包"
+          else
+            echo "on_main=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::tag $GITHUB_REF_NAME 不在 main 上，跳过出包"
+          fi
+
+      - name: 校验 tag 名与 package.json 版本一致
+        if: steps.contained.outputs.on_main == 'true'
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$pkg" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 package.json 的 $pkg 对不上——忘了 bump 版本号？"
+            exit 1
+          fi
+          echo "tag 与 package.json 一致：$pkg"
+
+  build-win:
+    name: 出 Windows 安装包并发布
+    needs: guard
+    if: needs.guard.outputs.on_main == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      # 串起 electron-vite build + build-cli.mjs + electron-builder --win --publish never。
+      # 依赖两处"关发布"，**改动前先读 electron-builder.yml 末尾那段注释**。
+      # CLI 产物（out/cli/tsubasa-ssh.js）经 extraResources 落 asar 外，
+      # 靠 runAsNode fuse 跑——将来加固时那个 fuse 必须保持开启。
+      - name: 构建安装包
+        run: npm run build:win
+
+      # 只挑安装包本体。dist/ 里还有 blockmap、builder-debug.yml 与 win-unpacked/，
+      # 没做自动更新，都不外发
+      - name: 挑出要发布的产物
+        shell: bash
+        run: |
+          mkdir -p release
+          cp dist/*-setup.exe release/
+          ls -lh release/
+
+      # 兜底：发版那步万一挂了，包还能从这次 run 里捞出来
+      - name: 上传安装包（Actions 制品）
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsubasaterminal-win-nsis
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 90
+
+      # 重推同名 tag 时替换附件，而不是撞上"已存在"直接失败
+      - name: 发布版本并挂上安装包
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/*.exe --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/*.exe \
+              --title "Tsubasa Terminal $GITHUB_REF_NAME" \
+              --notes "更新内容见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$GITHUB_REF_NAME/CHANGELOG.md)。Windows 安装包尚未代码签名，首次运行时 SmartScreen 会提示。" \
+              --verify-tag
+          fi

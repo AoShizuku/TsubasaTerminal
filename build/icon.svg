@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 256 256">
+  <!-- Tsubasa Terminal 应用图标源稿（icon.png 由此渲染，1024×1024，透明圆角外缘）。
+       Tsubasa 系列底版：圆角方 + 145° 品牌渐变 + 左上柔光 + 顶缘内高光 + 白色字形与同色系深投影，
+       各项目只换品牌色与字形；本项目品牌紫 #9c70ee → #7b4aca（见 doc/tsubasa-alignment.md §6），
+       字形为 > 提示符 + 实心块光标。改图标改这里，再渲染覆盖 icon.png。 -->
+  <defs>
+    <linearGradient id="bg" x1="0.21" y1="0.09" x2="0.79" y2="0.91">
+      <stop offset="0" stop-color="#9c70ee"/>
+      <stop offset="1" stop-color="#7b4aca"/>
+    </linearGradient>
+    <radialGradient id="hl" cx="0.25" cy="0.12" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.12" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#3b1d73" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <rect width="256" height="256" rx="56" fill="url(#hl)"/>
+  <rect x="1.5" y="1.5" width="253" height="253" rx="54.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <g filter="url(#sh)" fill="#ffffff">
+    <polyline points="70,82 120,128 70,174" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="138" y="150" width="50" height="26" rx="8"/>
+  </g>
+</svg>

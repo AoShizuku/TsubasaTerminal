@@ -1,0 +1,45 @@
+# 更新日志
+
+本项目的重要变更记录在此文件。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [Unreleased]
+
+## [1.0.0] - 2026-11-16
+
+首个公开版本。
+
+### 终端与会话
+
+- 主机管理：密码 / 私钥认证、主机指纹 TOFU 校验、从 `~/.ssh/config` 导入、环境等级标识
+- 多标签并行会话；固定命令输入栏与原生终端直通两种输入方式，可按主机指定
+- 会话内命令历史与搜索、Tab 补全（远端补全 + 命令规格）
+- Shell Integration（OSC 133 / OSC 7）：命令边界、退出码、当前目录与结构化转录，bash / zsh
+- 登录后提权：终端、独立命令与 SFTP 文件通道身份一致
+- 断线保活（远端 tmux 会话池，可选）
+
+### 文件
+
+- SFTP 平铺与树形浏览、跟随终端目录、上传下载
+- trzsz / ZMODEM（`rz` / `sz`）自动转 SFTP 传输
+
+### AI 运维助手
+
+- 支持 Anthropic、OpenAI Chat Completions 与 Responses 协议，自配服务与 API Key，思考档位可调
+- 读屏、结构化转录与独立命令三路上下文
+- 命令闸门：只读白名单纯函数硬解析、fail-closed；其余命令进入审批台由用户决定
+- 远端输出净化与可配置脱敏；审计日志
+- 对话持久化、接续与迁移、Markdown 导出
+- 全局 / 本机知识与排障经验：Agent 起草、用户确认后保存
+
+### 外部 CLI
+
+- `tsubasa-ssh`：主机清单、会话绑定、命令执行、多机并行、文件上传、读屏与转录
+- 复用应用的闸门、审批与审计；自动为 Claude Code / Codex 安装 skill
+- 默认关闭，需在设置中启用
+
+### 外观
+
+- 多套明暗终端配色，界面外壳随配色派生；界面字号与行高密度可调
+
+[1.0.0]: https://github.com/AoShizuku/TsubasaTerminal/releases/tag/v1.0.0

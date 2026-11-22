@@ -1,0 +1,515 @@
+/* ============================================================
+   控件层：按钮、输入、开关、分段、徽标、表单
+   移植自姊妹项目 TsubasaRedisManager 的 src/styles/controls.css，
+   类名与结构逐条对齐；色值换成本仓库从终端底色派生的变量。
+
+   **写在 @layer components 里**：Tailwind v4 的层序是
+   theme → base → components → utilities，未分层的 CSS 会**盖过**所有
+   utility。放进 components 层，`<Btn class="w-full">` 这类就地微调才仍然生效。
+   ============================================================ */
+
+@layer components {
+  /* ── 按钮 ─────────────────────────────────────────────── */
+  .btn {
+    height: var(--h-ctl);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: var(--fs-12);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--fg);
+    /* 控件面：暗色 = muted，亮色 = 白（同姊妹项目 #fff），见 shared/shellPalette */
+    background: var(--bg-ctl);
+    border: 1px solid var(--bd);
+    border-radius: var(--r-6);
+    box-shadow: var(--sh-1);
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--bg-active);
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 34%, transparent);
+  }
+  .btn-primary {
+    background: var(--ring);
+    border-color: transparent;
+    color: var(--primary-foreground);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--ring) 86%, var(--foreground));
+  }
+  .btn-danger {
+    color: var(--danger-fg);
+    border-color: color-mix(in oklab, var(--danger) 40%, var(--bd));
+    background: color-mix(in oklab, var(--danger) 10%, var(--bg-ctl));
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--danger) 20%, var(--bg-ctl));
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--fg-2);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--bg-active);
+    color: var(--fg);
+  }
+  .btn-sm {
+    height: var(--h-ctl-sm);
+    padding: 0 8px;
+    font-size: var(--fs-11);
+    gap: 5px;
+  }
+  .btn-icon {
+    width: var(--h-ctl);
+    padding: 0;
+  }
+  .btn-icon.btn-sm {
+    width: var(--h-ctl-sm);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .btn.is-on {
+    background: var(--bg-active);
+    color: var(--fg);
+  }
+
+  /* ── 输入 ─────────────────────────────────────────────── */
+  .input {
+    height: var(--h-ctl);
+    width: 100%;
+    min-width: 0;
+    padding: 0 9px;
+    font-size: var(--fs-12);
+    color: var(--fg);
+    background: var(--bg-ctl);
+    border: 1px solid var(--bd);
+    border-radius: var(--r-6);
+    box-shadow: var(--sh-1);
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .input::placeholder {
+    color: var(--fg-4);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+  }
+  .input:disabled {
+    background: var(--bg-subtle);
+    color: var(--fg-3);
+    box-shadow: none;
+  }
+  .input.mono {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-code);
+  }
+  .input.is-invalid {
+    border-color: color-mix(in oklab, var(--danger) 60%, var(--bd));
+  }
+  textarea.input {
+    height: auto;
+    padding: 7px 9px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  /*
+   * select 的**闭合态**抄外观，展开态一个字节都不动：main.css 的 base 层用
+   * `appearance: base-select` 接管了弹层配色（原生弹层在暗色下会反色成亮蓝高亮）。
+   * 姊妹项目那边是 `appearance: none` + 自绘 caret ——照抄会把这条修复推翻回去。
+   *
+   * 闭合态的裁剪与居中**必须落在作者自备的 `<button>` 上**，不能写在 select 自己身上：
+   * base-select 下 select 是 flex 容器，`overflow` 被 UA 硬锁成 visible
+   * （hidden/clip/auto 全部无效），`align-items` 又是 normal(stretch) 导致文字贴顶。
+   * 详见 components/ui/Sel.vue 的注释。
+   */
+  select.input {
+    padding-inline-end: 6px;
+    align-items: center;
+  }
+  select.input > button {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  select.input selectedcontent {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* ── 开关 / 复选 / 分段 ───────────────────────────────── */
+  .sw {
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--bd-strong);
+    position: relative;
+    flex: none;
+    border: 0;
+    padding: 0;
+  }
+  .sw::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    /* 暗色 = 正文色，亮色 = 白钮 */
+    background: var(--knob);
+    box-shadow: var(--sh-1);
+    transition: left 0.14s ease;
+  }
+  .sw.on {
+    background: var(--ring);
+  }
+  .sw.on::after {
+    left: 16px;
+    background: var(--primary-foreground);
+  }
+  .sw:disabled {
+    opacity: 0.45;
+  }
+  .sw:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 34%, transparent);
+  }
+
+  .cbx {
+    width: 15px;
+    height: 15px;
+    border-radius: var(--r-4);
+    border: 1px solid var(--bd-strong);
+    background: var(--bg-ctl);
+    flex: none;
+    display: grid;
+    place-items: center;
+    color: transparent;
+  }
+  .cbx.on {
+    background: var(--ring);
+    border-color: var(--ring);
+    color: var(--primary-foreground);
+  }
+  .cbx:disabled {
+    opacity: 0.45;
+  }
+  .cbx:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 34%, transparent);
+  }
+
+  .seg {
+    display: inline-flex;
+    background: var(--bg-subtle);
+    border: 1px solid var(--bd);
+    border-radius: var(--r-6);
+    padding: 2px;
+    gap: 2px;
+  }
+  .seg button {
+    height: 22px;
+    padding: 0 9px;
+    font-size: var(--fs-11);
+    font-weight: 500;
+    color: var(--fg-3);
+    border: 0;
+    background: transparent;
+    border-radius: var(--r-4);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .seg button:hover {
+    color: var(--fg);
+  }
+  /* 两种驱动方式都认：`.is-active` 给自己管状态的分段控件，
+     `[data-state=active]` 给 reka-ui 的 TabsTrigger（右栏 tab 条走这条） */
+  .seg button.is-active,
+  .seg button[data-state='active'] {
+    /* 暗色 = active，亮色 = 白块浮在灰槽里 */
+    background: var(--bg-ctl-on);
+    color: var(--fg);
+    box-shadow: var(--sh-1);
+  }
+
+  /* ── 徽标与横幅 ───────────────────────────────────────── */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: var(--r-4);
+    font-size: var(--fs-10);
+    font-weight: 500;
+    color: var(--fg-3);
+    background: var(--bg-subtle);
+    border: 1px solid var(--bd);
+    flex: none;
+  }
+  .tag-ok {
+    color: var(--ok-fg);
+    background: color-mix(in oklab, var(--ok) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--ok) 34%, var(--background));
+  }
+  .tag-warn {
+    color: var(--warn-fg);
+    background: color-mix(in oklab, var(--warn) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--warn) 34%, var(--background));
+  }
+  .tag-danger {
+    color: var(--danger-fg);
+    background: color-mix(in oklab, var(--danger) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--danger) 34%, var(--background));
+  }
+  .tag-accent {
+    color: var(--ring);
+    background: color-mix(in oklab, var(--ring) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--ring) 34%, var(--background));
+  }
+
+  /*
+   * banner：长告诫的去处。`.srow` 的说明只留一句"是什么/会怎样"，
+   * 后果、风险、不可绕过的限制一律进这里——不这么分，说明文字就会长回
+   * v0.12 那种 5、6 行的段落，把控件挤成小字的陪衬。
+   */
+  .banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 11px;
+    border-radius: var(--r-6);
+    font-size: var(--fs-11);
+    line-height: 1.55;
+    border: 1px solid;
+  }
+  .banner svg {
+    margin-top: 1px;
+    flex: none;
+  }
+  .banner-ok {
+    color: var(--ok-fg);
+    background: color-mix(in oklab, var(--ok) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--ok) 34%, var(--background));
+  }
+  .banner-warn {
+    color: var(--warn-fg);
+    background: color-mix(in oklab, var(--warn) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--warn) 34%, var(--background));
+  }
+  .banner-danger {
+    color: var(--danger-fg);
+    background: color-mix(in oklab, var(--danger) 14%, var(--background));
+    border-color: color-mix(in oklab, var(--danger) 34%, var(--background));
+  }
+  .banner-info {
+    color: var(--fg-2);
+    background: color-mix(in oklab, var(--ring) 12%, var(--background));
+    border-color: color-mix(in oklab, var(--ring) 30%, var(--background));
+  }
+  .banner b {
+    font-weight: 600;
+    color: inherit;
+  }
+  .banner code {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-10);
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: var(--fs-10);
+    font-weight: 500;
+    color: var(--fg-2);
+    background: var(--muted);
+    border: 1px solid var(--bd-strong);
+    border-bottom-width: 2px;
+    border-radius: var(--r-4);
+    flex: none;
+  }
+
+  /* ── 表单 ─────────────────────────────────────────────── */
+  /* 标签列 + 控件列的网格。取代"标签在上、输入在下"的两行式——
+     同样的字段数，竖向少一半，且标签左缘对齐后一眼扫得完。 */
+  .field {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 5px 0;
+  }
+  .field > label {
+    font-size: var(--fs-12);
+    color: var(--fg-2);
+  }
+  .field-ctl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .field-hint {
+    grid-column: 2;
+    font-size: var(--fs-11);
+    line-height: 1.5;
+    color: var(--fg-4);
+    margin-top: -2px;
+  }
+  .field-err {
+    grid-column: 2;
+    font-size: var(--fs-11);
+    color: var(--danger-fg);
+    margin-top: -2px;
+  }
+  /* 文本域字段：标签与计数在上、框在下占满两列 */
+  .field-wide {
+    display: block;
+    padding: 5px 0;
+  }
+
+  .form {
+    padding: 16px 18px 20px;
+  }
+  /* 分页表单给一个下限高度：四页字段数不同，不定下限的话切 tab 时整个弹窗
+     跟着蹦一下——那一下比多留的空白难看得多。 */
+  .form-steady {
+    min-height: 296px;
+  }
+  .form-sec + .form-sec {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--bd);
+  }
+  .cap {
+    font-size: var(--fs-10);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* 定宽控件。**前缀 wf- 不是 w-**：Tailwind v4 会按数字动态生成 `w-88`
+     （= 22rem），且 utilities 层压过 components 层，同名就等于这几条全是死的。 */
+  .wf-64 {
+    width: 64px;
+    flex: none;
+  }
+  .wf-88 {
+    width: 88px;
+    flex: none;
+  }
+  .wf-120 {
+    width: 120px;
+    flex: none;
+  }
+  .wf-160 {
+    width: 160px;
+    flex: none;
+  }
+
+  .muted-txt {
+    color: var(--fg-3);
+  }
+  .quiet-txt {
+    color: var(--fg-4);
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 图标（同姊妹项目 visual-language「图标」） ──────────────
+     只留 12 / 16 两档，20 只给空状态。Lucide 画在 24px 网格上：12（÷2）与
+     16（×⅔）落整像素，14 会让描边落半像素发虚。描边按尺寸换算 12→1.5、16→1.75
+     （24 网格单位，随 viewBox 缩放）；CSS 的 stroke-width 压过组件写的 SVG 属性，
+     模板里不要另传。例外只有复选框里的对勾（:size + 加粗描边，见 ui/Cbx.vue）。
+     tests/unit/designTokens 守着。 */
+  .i-12,
+  .i-16,
+  .i-20 {
+    flex: none;
+  }
+  .i-12 {
+    width: 12px;
+    height: 12px;
+    stroke-width: 1.5;
+  }
+  .i-16 {
+    width: 16px;
+    height: 16px;
+    stroke-width: 1.75;
+  }
+  .i-20 {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.75;
+  }
+
+  /* ── 分栏把手（ui/Sash.vue） ────────────────────────
+     .sash 零宽不占布局；.sash-hit 向左伸 3px 骑在侧栏边线上，两侧各吃 3px。
+     hover 延迟 150ms 才显色——扫过边线时不闪；拖动中即时常亮。 */
+  .sash {
+    position: relative;
+    /* 压过中栏里 z-30 以内的浮层（env-rail、Agent 浮层），幕布才能在全窗定光标 */
+    z-index: 30;
+    width: 0;
+    flex: none;
+    align-self: stretch;
+  }
+  .sash-hit {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    width: 6px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background-color 0.12s ease 0.15s;
+  }
+  .sash-hit:hover {
+    background: color-mix(in oklab, var(--ring) 45%, transparent);
+  }
+  .sash[data-dragging] .sash-hit {
+    background: color-mix(in oklab, var(--ring) 70%, transparent);
+    transition-delay: 0s;
+  }
+  /* 拖动幕布：不接事件（指针已被捕获），只定光标形状、压掉扫过处的 hover */
+  .sash-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    cursor: col-resize;
+  }
+}

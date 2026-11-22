@@ -1,0 +1,16 @@
+node_modules
+dist
+out
+*.log
+.DS_Store
+.eslintcache
+*.local
+test-results
+playwright-report
+scripts/smoke.config.json
+test-results-smoke
+
+# 个人与 IDE 配置不入库；.vscode/launch.json 作为共享调试配置照常跟踪
+.idea
+.claude/settings.local.json
+.doc-legacy-git
