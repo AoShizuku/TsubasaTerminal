@@ -23,7 +23,7 @@ jobs:
       on_main: ${{ steps.contained.outputs.on_main }}
     steps:
       - name: 检出
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # merge-base 需要完整历史，浅克隆会误判
           fetch-depth: 0
@@ -59,10 +59,10 @@ jobs:
       contents: write
     steps:
       - name: 检出
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 准备 Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -88,7 +88,7 @@ jobs:
 
       # 兜底：发版那步万一挂了，包还能从这次 run 里捞出来
       - name: 上传安装包（Actions 制品）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tsubasaterminal-win-nsis
           path: release/*.exe
