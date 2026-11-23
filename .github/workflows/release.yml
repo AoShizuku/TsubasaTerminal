@@ -3,6 +3,8 @@
 # 产物名来自 electron-builder.yml 的 `${name}-${version}-setup.${ext}`，取 package.json
 # 的版本号。tag 名与它**必须一致**，由 guard 校验——不一致就是"忘了 bump 版本号"，
 # 放过去会产出 Release 名与安装包版本错位、"关于"里显示旧版本的包。
+#
+# Release 说明取 CHANGELOG.md 里本版小节（scripts/release-notes.mjs），guard 先校验它存在且非空。
 name: Release
 
 on:
@@ -50,6 +52,11 @@ jobs:
           fi
           echo "tag 与 package.json 一致：$pkg"
 
+      # 发版提交须把 Unreleased 归入本版小节；漏写就停在这里，不发一个说明为空的 Release
+      - name: 校验 CHANGELOG 有本版条目
+        if: steps.contained.outputs.on_main == 'true'
+        run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > /dev/null
+
   build-win:
     name: 出 Windows 安装包并发布
     needs: guard
@@ -95,7 +102,14 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      # 重推同名 tag 时替换附件，而不是撞上"已存在"直接失败
+      # CHANGELOG 本版小节（guard 已校验非空），后附未签名提示
+      - name: 生成发布说明
+        shell: bash
+        run: |
+          node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
+          printf '\n---\n\nWindows 安装包尚未代码签名，首次运行时 SmartScreen 会提示。\n' >> release-notes.md
+
+      # 重推同名 tag 时替换附件并刷新说明，而不是撞上"已存在"直接失败
       - name: 发布版本并挂上安装包
         shell: bash
         env:
@@ -103,9 +117,10 @@ jobs:
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" release/*.exe --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
           else
             gh release create "$GITHUB_REF_NAME" release/*.exe \
               --title "Tsubasa Terminal $GITHUB_REF_NAME" \
-              --notes "更新内容见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$GITHUB_REF_NAME/CHANGELOG.md)。Windows 安装包尚未代码签名，首次运行时 SmartScreen 会提示。" \
+              --notes-file release-notes.md \
               --verify-tag
           fi

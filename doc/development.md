@@ -140,8 +140,10 @@ Windows 命名管道，由本地跑。工作流 YAML 由 [.gitattributes](../.gi
 避免 Linux `run:` 块混入 CR。
 
 CD 配置在 [release.yml](../.github/workflows/release.yml)：在 main 上推送 `v*` tag 触发。
-guard 校验 tag 被 main 包含且名称等于 `v<package.json 版本>`，再在 `windows-latest`
-上原生构建 NSIS 安装包，挂为 GitHub Release 附件，同时保存 Actions 制品兜底。
+guard 校验 tag 被 main 包含、名称等于 `v<package.json 版本>`，且 CHANGELOG 有该版本的
+非空小节；再在 `windows-latest` 上原生构建 NSIS 安装包，挂为 GitHub Release 附件，
+同时保存 Actions 制品兜底。Release 说明由 [release-notes.mjs](../scripts/release-notes.mjs)
+从 CHANGELOG 截取该版小节，后附未签名提示；重推同名 tag 时替换附件并刷新说明。
 
 发布步骤：
 
@@ -153,6 +155,9 @@ guard 校验 tag 被 main 包含且名称等于 `v<package.json 版本>`，再�
 改构建配置时，保留下列接缝；原因详见相应配置旁注释：
 
 - guard 与 build-win 分为两个 job，不合规的 tag 不启动 Windows runner。
+- CHANGELOG 版本标题 `## [X.Y.Z]` 是 Release 说明的截取锚点，改格式须同步改
+  `release-notes.mjs`。仓库内 CHANGELOG 须始终含当前 `package.json` 版本的小节，
+  由 integration 测试守着，漏写在打 tag 前就会被 CI 发现。
 - [electron-builder.yml](../electron-builder.yml) 的 `publish: null` 与
   `build:win` 的 `--publish never` 缺一不可，分别关闭发布目标猜测与上传策略；
   Release 由工作流用 `gh release` 上传。
