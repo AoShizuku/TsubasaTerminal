@@ -202,7 +202,7 @@ function onRow(row: Row): void {
       :class="cn('leading-relaxed text-warn', dense ? 'text-meta' : 'text-list')"
       data-testid="context-pending-knowledge"
     >
-      知识已改动，<b>下一个对话才生效</b>——它在缓存最前缀，中途换等于后续每轮全部重算。
+      知识已改动，<b>下一个对话才生效</b>。
     </p>
   </div>
 </template>

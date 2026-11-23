@@ -354,15 +354,29 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
         <!-- ── 外观 ── -->
         <template v-if="settingsSection === 'appearance'">
           <h3>外观</h3>
-          <p class="lead">终端网格与界面外壳共用一套配色。</p>
 
           <div class="set-group">
             <div class="cap">界面</div>
             <div class="srow">
               <div class="srow-txt">
-                <b>行高密度</b>
-                <p>影响主机列表、文件列表的行高与控件高度，不改字号。</p>
+                <b>配色方案</b>
+                <p>终端与界面共用。</p>
               </div>
+              <div class="srow-ctl">
+                <Sel
+                  :model-value="settings.terminalTheme"
+                  data-testid="settings-theme"
+                  class="wf-160"
+                  @update:model-value="setTheme"
+                >
+                  <option v-for="t in TERMINAL_THEMES" :key="t.id" :value="t.id">
+                    {{ t.name }}
+                  </option>
+                </Sel>
+              </div>
+            </div>
+            <div class="srow">
+              <div class="srow-txt"><b>行高密度</b></div>
               <div class="srow-ctl">
                 <div class="seg" role="radiogroup" aria-label="行高密度" data-testid="settings-density">
                   <button
@@ -381,10 +395,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
               </div>
             </div>
             <div class="srow">
-              <div class="srow-txt">
-                <b>界面字号</b>
-                <p>左右栏、标签页与弹窗的文字整体放大；终端字号在下方单独设置。</p>
-              </div>
+              <div class="srow-txt"><b>界面字号</b></div>
               <div class="srow-ctl">
                 <div class="seg" role="radiogroup" aria-label="界面字号" data-testid="settings-ui-font-size">
                   <button
@@ -407,24 +418,6 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
           <div class="set-group">
             <div class="cap">终端</div>
             <div class="srow">
-              <div class="srow-txt">
-                <b>配色方案</b>
-                <p>整个界面的底色、线条与文字都从它派生；选浅色方案即为亮色界面。</p>
-              </div>
-              <div class="srow-ctl">
-                <Sel
-                  :model-value="settings.terminalTheme"
-                  data-testid="settings-theme"
-                  class="wf-160"
-                  @update:model-value="setTheme"
-                >
-                  <option v-for="t in TERMINAL_THEMES" :key="t.id" :value="t.id">
-                    {{ t.name }}
-                  </option>
-                </Sel>
-              </div>
-            </div>
-            <div class="srow">
               <div class="srow-txt"><b>字号</b></div>
               <div class="srow-ctl">
                 <input
@@ -440,10 +433,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
               </div>
             </div>
             <div class="srow">
-              <div class="srow-txt">
-                <b>字体</b>
-                <p>只列出本机已安装的等宽字体。</p>
-              </div>
+              <div class="srow-txt"><b>字体</b></div>
               <div class="srow-ctl">
                 <Sel
                   :model-value="settings.terminalFontFamily"
@@ -451,7 +441,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
                   class="wf-160"
                   @update:model-value="setFont"
                 >
-                  <option value="">默认（含 CJK 回退）</option>
+                  <option value="">默认</option>
                   <option v-for="f in fontOptions" :key="f.value" :value="f.value">
                     {{ f.label }}
                   </option>
@@ -461,12 +451,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div class="srow">
               <div class="srow-txt">
                 <b>输入方式</b>
-                <p>
-                  固定输入栏：本地组稿零延迟、中文输入法稳、带补全与 ghost 建议，Enter 才发送。
-                  原生终端：按键直达远端 shell，命令行编辑、历史（↑/Ctrl+R）、Tab
-                  补全全部用你远端自己的配置（readline/zle/fish）。审批台两种方式下都在。
-                  这里是默认值，单台主机可在「编辑主机 → 会话」里另行指定。
-                </p>
+                <p>单台主机可在编辑主机里另设。</p>
               </div>
               <div class="srow-ctl">
                 <Sel
@@ -480,13 +465,6 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
                 </Sel>
               </div>
             </div>
-            <div class="banner banner-info" style="margin-top: 10px">
-              <Info class="i-16" />
-              <span>
-                Nerd Font（如 CaskaydiaCove NF）能显示 powerline 与图标字形；
-                中文对齐推荐 Sarasa Mono SC（汉字严格 2:1）。默认回退栈已内置 CJK 等宽兜底。
-              </span>
-            </div>
           </div>
 
           <div class="set-group">
@@ -494,10 +472,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div class="srow">
               <div class="srow-txt">
                 <b>终端选中即复制</b>
-                <p>
-                  鼠标选完立即进系统剪贴板（PuTTY 传统）——终端里的 Ctrl+C
-                  是中断信号，本就不该兼任复制。关掉后用 Ctrl+Shift+C。
-                </p>
+                <p>关闭后用 Ctrl+Shift+C 复制。</p>
               </div>
               <div class="srow-ctl">
                 <Sw
@@ -508,14 +483,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
               </div>
             </div>
             <div class="srow">
-              <div class="srow-txt">
-                <b>多行粘贴前确认</b>
-                <p>
-                  直接粘进终端的多行内容先问一次。远端已开启 bracketed paste
-                  （bash 5.1+、zsh 默认）时整块进输入行、回车才执行，不会弹；
-                  关掉后老 shell、网络设备上每个换行都会立即执行。
-                </p>
-              </div>
+              <div class="srow-txt"><b>多行粘贴前确认</b></div>
               <div class="srow-ctl">
                 <Sw
                   :model-value="settings.terminalConfirmMultilinePaste"
@@ -524,13 +492,6 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
                 />
               </div>
             </div>
-            <div class="banner banner-warn" style="margin-top: 10px">
-              <AlertTriangle class="i-16" />
-              <span>
-                <b>终端屏幕从不脱敏。</b>开着「选中即复制」时，划过一段带明文凭据的输出
-                就等于把它送进了系统剪贴板。
-              </span>
-            </div>
           </div>
 
           <div class="set-group">
@@ -538,10 +499,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div class="srow">
               <div class="srow-txt">
                 <b>关闭忙碌会话前确认</b>
-                <p>
-                  命令运行中或全屏应用（vim、htop 等）中点关闭先问一次——关闭会断开 SSH，
-                  远端前台进程通常随之终止。未启用 shell integration 的会话判断不了忙闲，不会弹。
-                </p>
+                <p>命令运行中或在全屏程序里时，关闭标签前先确认。</p>
               </div>
               <div class="srow-ctl">
                 <Sw
@@ -557,7 +515,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
         <!-- ── 知识 ── -->
         <template v-else-if="settingsSection === 'knowledge'">
           <h3>全局知识</h3>
-          <p class="lead">所有主机通用的人写事实，直插 Agent 的 system prompt 最前。</p>
+          <p class="lead">所有主机通用，每个对话都会带给 Agent。</p>
 
           <div class="set-group">
             <div class="cap">
@@ -579,10 +537,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             />
             <div class="banner banner-info" style="margin-top: 10px">
               <Info class="i-16" />
-              <span>
-                Agent 每轮可见但改不了它——写进知识层的注入是永久后门，这条通道只对人开放。
-                单机专属的内容写在主机的「本机知识」里。保存后<b>下一个对话才生效</b>。
-              </span>
+              <span>单机专属的内容写在主机的「本机知识」里。</span>
             </div>
           </div>
         </template>
@@ -590,7 +545,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
         <!-- ── 模型服务 ── -->
         <template v-else-if="settingsSection === 'models'">
           <h3>模型服务</h3>
-          <p class="lead">BYOK。API key 加密存在本机，渲染进程只见「是否已配」。</p>
+          <p class="lead">API key 加密保存在本机。</p>
 
           <div class="set-group">
             <div class="cap">
@@ -731,9 +686,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
                     placeholder="200000"
                     data-testid="llm-form-window"
                   />
-                  <span class="quiet-txt" style="font-size: var(--fs-11)">
-                    tokens · Agent 栏 token 圆环的分母
-                  </span>
+                  <span class="quiet-txt" style="font-size: var(--fs-11)">tokens</span>
                 </div>
               </div>
               <div class="field">
@@ -765,11 +718,8 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div class="cap">额外的 LLM 用量</div>
             <div class="srow">
               <div class="srow-txt">
-                <b>L3 智能补全</b>
-                <p>
-                  命令结束时预测下一条、非零退出码给修复建议（灰字 ghost，→ 接受）。
-                  每条命令一次 LLM 调用，走活动模型服务的额度。
-                </p>
+                <b>智能补全</b>
+                <p>命令结束后预测下一条，出错时给修复建议。每条命令调用一次模型。</p>
               </div>
               <div class="srow-ctl">
                 <Sw
@@ -785,13 +735,12 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
         <!-- ── 安全与审计 ── -->
         <template v-else-if="settingsSection === 'security'">
           <h3>安全与审计</h3>
-          <p class="lead">出口脱敏与操作留痕。</p>
 
           <div class="set-group">
             <div class="srow">
               <div class="srow-txt">
                 <b>凭据脱敏</b>
-                <p>检测转录出口里的密钥与密码，替换成指纹占位符再交给 AI 或落盘。</p>
+                <p>发给 AI 或写入磁盘前，把密钥与密码替换为占位符。</p>
               </div>
               <div class="srow-ctl">
                 <Sw
@@ -804,7 +753,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div class="srow">
               <div class="srow-txt">
                 <b>审计日志</b>
-                <p>自动执行、每条提案与决策、批准命令的结果，脱敏后追加到 audit.jsonl。</p>
+                <p>记录 Agent 的提案、审批与执行结果（已脱敏）。</p>
               </div>
               <div class="srow-ctl">
                 <Btn size="sm" data-testid="settings-audit-reveal" @click="revealAudit">
@@ -817,9 +766,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
           <div class="banner banner-warn" style="margin-top: 12px">
             <AlertTriangle class="i-16" />
             <span>
-              关掉脱敏后，转录与命令历史保留原文——发给 AI 或落盘的内容包含真实凭据。
-              另：Agent 对话记录会落盘，其中命令输出已脱敏，但<b>你在对话框里亲手打的字
-              任何时候都原样保存</b>——别把密码打进对话框。
+              对话框里你亲手输入的内容<b>原样保存、不脱敏</b>，请勿在其中输入密码。
             </span>
           </div>
         </template>
@@ -827,15 +774,13 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
         <!-- ── 命令行工具 ── -->
         <template v-else-if="settingsSection === 'cli'">
           <h3>命令行工具</h3>
-          <p class="lead">把执行平面开放给 Claude Code / Codex 这类外部 agent。</p>
 
           <div class="set-group" data-testid="settings-cli-section">
             <div class="srow">
               <div class="srow-txt">
                 <b>安装 tsubasa-ssh（加入 PATH）</b>
                 <p>
-                  外部 agent 经 <code>tsubasa-ssh</code> 复用你已连接的会话、共享闸门与审计，
-                  命令仍落在你看得见的终端里。
+                  外部 agent（Claude Code、Codex 等）复用已连接的会话执行命令，同样经过审批与审计。
                 </p>
               </div>
               <div class="srow-ctl">
@@ -854,10 +799,7 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
             <div v-for="s in cli?.skills ?? []" :key="s.target" class="srow is-child">
               <div class="srow-txt">
                 <b>{{ skillLabel(s.target) }}</b>
-                <p>
-                  往 <code>{{ s.dir }}</code> 写一份用法与闸门规则，随版本自动更新；
-                  你手工改过的不会被覆盖。
-                </p>
+                <p>写入 <code>{{ s.dir }}</code>，随版本自动更新。</p>
                 <p
                   v-if="s.legacyDir"
                   class="is-warn"
@@ -887,17 +829,14 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string }[] = [
           <div class="banner banner-danger" style="margin-top: 12px">
             <AlertTriangle class="i-16" />
             <span>
-              <b>这是这条通道唯一的新增攻击面。</b>管道
-              <code>{{ cli?.pipeName || '(未就绪)' }}</code>
-              同用户即同权：任何本地进程连上它都能操纵你所有已连会话（凭据仍不出主进程）。
-              不用时请关掉。
+              管道 <code>{{ cli?.pipeName || '(未就绪)' }}</code>
+              对本机同一用户的任何进程开放，可操纵所有已连接会话。<b>不用时请关闭。</b>
             </span>
           </div>
           <div class="banner banner-info" style="margin-top: 8px">
             <Info class="i-16" />
             <span>
-              首次调用时对方会撞到权限提示，把 <code>tsubasa-ssh</code> 整条放行即可——
-              审批权唯一归属 Tsubasa Terminal。改 PATH 对<b>已开着的终端不生效</b>，开完请重开终端。
+              首次调用时把 <code>tsubasa-ssh</code> 整条放行即可，审批在 Tsubasa Terminal 内进行。
             </span>
           </div>
         </template>

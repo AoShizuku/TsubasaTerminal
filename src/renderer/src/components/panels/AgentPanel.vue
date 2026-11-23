@@ -690,10 +690,9 @@ onBeforeUnmount(() => {
                 : '未上报'
             }}
           </p>
-          <p>窗口大小在设置 · 模型服务里按 profile 配置</p>
         </div>
         <p v-else class="mt-2 border-t pt-2 text-meta text-muted-foreground">
-          首轮回来前只有估算值；官方计数到手后圆环转为实测口径。
+          首轮回复前为估算值
         </p>
       </div>
       <!-- :title 防模型名 truncate 后认不出（v0.10.1 顺带）。v0.13.14 起按会话：
@@ -870,7 +869,7 @@ onBeforeUnmount(() => {
           class="border-t px-2 py-1 text-meta text-muted-foreground"
           data-testid="agent-exp-omitted"
         >
-          超出注入上限，另有 {{ expOmitted }} 条未注入（按创建时间新者优先；pin 可固定，删可腾位）
+          超出上限，另有 {{ expOmitted }} 条未注入（新者优先，可固定）
         </p>
       </div>
       <!-- 信任集徽章（v0.9.2 `a` 免问）：授出去的信任必须一眼可见、可随时收回 -->
@@ -890,7 +889,7 @@ onBeforeUnmount(() => {
         data-testid="agent-trust-panel"
       >
         <p class="mb-1 text-meta text-muted-foreground">
-          以下动词在本机免审批直接执行（仍进终端、进审计）
+          以下命令在本机免审批执行
         </p>
         <p class="break-all font-mono text-meta">{{ trustedVerbs.join(' · ') }}</p>
         <button
@@ -1026,9 +1025,8 @@ onBeforeUnmount(() => {
           @edit-global="editGlobalKnowledge"
           @edit-host="editHostKnowledge"
         />
-        <p class="text-meta leading-relaxed text-muted-foreground/70">
-          <span v-if="centerBusy">中栏正忙（待审批文件 / 全屏程序），原文稍后再看 · </span>
-          对话自动保存，右上角历史里可回看与导出。
+        <p v-if="centerBusy" class="text-meta leading-relaxed text-muted-foreground/70">
+          中栏正忙（待审批文件 / 全屏程序），原文稍后再看
         </p>
       </div>
 
@@ -1036,12 +1034,13 @@ onBeforeUnmount(() => {
         <Bot class="i-20 text-muted-foreground/40" />
         <p class="text-title font-medium">AI Agent</p>
         <p class="text-list leading-relaxed text-muted-foreground">
-          <template v-if="llmProfiles.length === 0">
-            先在顶部设置中添加模型服务（Anthropic / OpenAI 兼容端点），
-          </template>
-          <template v-else-if="!connected">先连接一台主机，</template>
-          然后在这里提问。Agent 可读屏、查转录、自动执行只读命令；
-          写操作会填入输入栏由你确认。对话自动保存，可从历史回看与导出。
+          {{
+            llmProfiles.length === 0
+              ? '先在设置中添加模型服务'
+              : !connected
+                ? '先连接一台主机'
+                : '在这里提问'
+          }}
         </p>
       </div>
     </div>

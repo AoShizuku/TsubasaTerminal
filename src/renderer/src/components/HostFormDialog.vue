@@ -267,10 +267,7 @@ function submit(): void {
 
       <div v-if="form.envLevel === 'production'" class="banner banner-warn" style="margin-top: 10px">
         <AlertTriangle class="i-16" />
-        <span>
-          生产机的中风险以上提案要手输<b>上面这个别名</b>才放行。
-          所以它必须是人叫得出口的短名字，不能是空、不能照抄地址、不能是 IP。
-        </span>
+        <span>生产机的中高风险操作需手输<b>此别名</b>确认，请起一个好记的短名。</span>
       </div>
     </div>
 
@@ -282,7 +279,7 @@ function submit(): void {
           <Sw v-model="form.shellIntegration" data-testid="form-shell-integration" />
           <span class="quiet-txt" style="font-size: var(--fs-11)">目录跟随 / 命令边界</span>
         </div>
-        <p class="field-hint">连接后装载一行 source，仅 bash / zsh。关掉则文件栏不跟随、转录无结构。</p>
+        <p class="field-hint">仅支持 bash / zsh。</p>
       </div>
 
       <div class="field">
@@ -291,7 +288,7 @@ function submit(): void {
           <Sw v-model="form.tmuxKeepalive" data-testid="form-tmux-keepalive" />
           <span class="quiet-txt" style="font-size: var(--fs-11)">tmux</span>
         </div>
-        <p class="field-hint">连接后自动 attach 服务端 tmux 会话池，断线重连回到原现场。</p>
+        <p class="field-hint">断线重连后回到原 tmux 会话。</p>
       </div>
 
       <div class="field">
@@ -303,10 +300,7 @@ function submit(): void {
             <option value="native">原生终端直通</option>
           </Sel>
         </div>
-        <p class="field-hint">
-          这台机器用哪种输入方式，覆盖设置里的默认值；保存后已开的标签立即切换。
-          未检测到 Shell 集成时始终直通。
-        </p>
+        <p class="field-hint">未检测到 Shell 集成时始终直通。</p>
       </div>
 
       <div class="field">
@@ -341,14 +335,10 @@ function submit(): void {
               data-testid="form-sftp-server-path"
             />
           </div>
-          <p class="field-hint">文件栏与 rz / sz 切 root 靠在 exec channel 上跑它。</p>
         </div>
         <div class="banner banner-warn" style="margin-top: 10px">
           <AlertTriangle class="i-16" />
-          <span>
-            切换失败时<b>整个会话退回登录用户</b>并在标签页标明原因——
-            不做部分提权，身份分裂比连不上更危险。
-          </span>
+          <span>提权失败时<b>整个会话以登录用户运行</b>，标签页会标明原因。</span>
         </div>
       </template>
     </div>
@@ -371,11 +361,7 @@ function submit(): void {
       />
       <div class="banner banner-info" style="margin-top: 10px">
         <Info class="i-16" />
-        <span>
-          写拓扑、约定、禁忌、词汇表——尤其是<b>机器上查不到</b>的那些（组织约定）。
-          Agent 每轮都能看到，但改不了它。保存后<b>下一个对话才生效</b>
-          （它在缓存最前缀，中途换等于后续每轮重算）；重连主机或切换模型即开启新对话。
-        </span>
+        <span>写<b>机器上查不到</b>的约定、禁忌与术语。</span>
       </div>
     </div>
 

@@ -119,8 +119,8 @@ async function runBridge(
   const parsed = ctx.command ? parseSzArgs(ctx.command) : null
   if (!parsed) {
     writeLine(
-      `${C_WARN}[Tsubasa Terminal] 无法解析命令参数（直打回显近似失败或无 shell integration）——` +
-        `请在文件栏手动下载，或远端安装 trzsz 使用 tsz${C_END}`
+      `${C_WARN}[Tsubasa Terminal] 无法解析命令参数——` +
+        `请在文件栏手动下载，或在远端安装 trzsz 后使用 tsz${C_END}`
     )
     return
   }

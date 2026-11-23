@@ -368,24 +368,22 @@ function onInputScroll(): void {
 }
 
 const modeHint: Record<string, { dot: string; label: string }> = {
-  prompt: { dot: 'bg-ok', label: '就绪 · Enter 发送 · Tab 补全 · ↑ 历史 · Ctrl+R 搜索' },
+  prompt: { dot: 'bg-ok', label: '就绪 · Tab 补全 · Ctrl+R 搜索历史' },
   running: { dot: 'bg-warn animate-pulse', label: '命令运行中 · 按键直达终端' },
-  none: { dot: 'bg-muted-foreground', label: '直通模式 · 未检测到 shell integration，按键直达终端' },
+  none: { dot: 'bg-muted-foreground', label: '直通模式 · 未检测到 Shell 集成' },
   tui: { dot: 'bg-muted-foreground', label: '' }
 }
 
 /**
  * 状态点与文案：native 的 prompt 有自己的说法——键根本不经这里。
- * 本机指定了输入方式时在 prompt 文案前标来源，免得和设置页的默认值对不上。
+ * 本机指定了输入方式时标出来源，免得和设置页的默认值对不上。
  */
 const currentHint = computed(() => {
-  const source = inputPreferenceFromHost(props.sessionId) ? '本机设置 · ' : ''
+  const fromHost = inputPreferenceFromHost(props.sessionId)
   if (state.value.mode === 'prompt' && isNative.value) {
-    return {
-      dot: 'bg-ok',
-      label: `原生输入 · ${source}按键直达远端 shell（编辑/历史/补全用远端自己的）`
-    }
+    return { dot: 'bg-ok', label: fromHost ? '原生输入 · 本机设置' : '原生输入' }
   }
+  const source = fromHost ? '本机设置 · ' : ''
   const hint = modeHint[state.value.mode]
   return state.value.mode === 'prompt' && source ? { ...hint, label: source + hint.label } : hint
 })
@@ -401,7 +399,7 @@ const stallError = ref('')
 async function onReinject(): Promise<void> {
   stallError.value = ''
   if (!(await window.api.ssh.reinjectSi(props.sessionId))) {
-    stallError.value = '该会话未启用 shell integration'
+    stallError.value = '该会话未启用 Shell 集成'
     return
   }
   // 不动 stalled：新 shell 的 133;A 到达时 onPromptReady 会自然清掉；
@@ -843,7 +841,7 @@ onBeforeUnmount(() => {
     <div class="flex shrink-0 items-center gap-1.5 px-3 pt-1.5 text-meta text-muted-foreground">
       <span :class="cn('size-1.5 rounded-full', stalled ? 'bg-warn' : currentHint.dot)" />
       <span data-testid="composer-hint">
-        {{ stalled ? '命令运行中 · 疑似换了 shell，shell integration 已断' : currentHint.label }}
+        {{ stalled ? '命令运行中 · Shell 集成已断开（可能切换了 shell）' : currentHint.label }}
       </span>
       <!-- none 的显式恢复动作（v0.13.4 fail-closed）：唯一能把无 SI 会话声明为
            可写的路径——人的现场判断，不做提示符正则/静默推断 -->
@@ -867,7 +865,7 @@ onBeforeUnmount(() => {
       <template v-if="stalled">
         <button
           class="shrink-0 rounded border border-ok/40 px-1.5 text-meta text-ok hover:bg-ok/10"
-          title="向当前 shell 重新 source SI 脚本，恢复 OSC 133（无需退出 sudo su）"
+          title="在当前 shell 里重新装载 Shell 集成（无需退出 sudo su）"
           data-testid="stall-reinject"
           @click="onReinject"
         >
@@ -875,7 +873,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           class="shrink-0 rounded border border-border px-1.5 text-meta hover:bg-accent"
-          title="放弃本会话的 shell integration，按直通模式继续（解除 Agent 审批的终端忙锁定）"
+          title="本会话改按直通模式继续（解除 Agent 审批的终端忙锁定）"
           data-testid="stall-passthrough"
           @click="resetToPassthrough(sessionId)"
         >

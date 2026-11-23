@@ -168,7 +168,7 @@ describe('SettingsDialog terminal font', () => {
     await flushPromises()
 
     expect(fontOptions(wrapper)).toEqual([
-      ['', '默认（含 CJK 回退）'],
+      ['', '默认'],
       ['Consolas', 'Consolas'],
       ['Maple Mono Normal NL NF CN', 'Maple Mono Normal NL NF CN']
     ])
@@ -195,7 +195,7 @@ describe('SettingsDialog terminal font', () => {
     resolve(['Consolas'])
     await flushPromises()
     expect(fontOptions(wrapper)).toEqual([
-      ['', '默认（含 CJK 回退）'],
+      ['', '默认'],
       ['Maple Mono NF CN', 'Maple Mono NF CN（未安装）'],
       ['Consolas', 'Consolas']
     ])

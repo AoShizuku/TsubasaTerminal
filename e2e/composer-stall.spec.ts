@@ -69,7 +69,7 @@ test('SI 断链：sudo su 后卡在 running，重新装载原地恢复就绪', {
   await connectAndWaitPrompt(page)
   await enterStalledSuShell(page)
 
-  await expect(page.getByTestId('composer-hint')).toContainText('shell integration 已断')
+  await expect(page.getByTestId('composer-hint')).toContainText('Shell 集成已断开')
   await expect(page.getByTestId('stall-passthrough')).toBeVisible()
 
   // 重载是真修复：新 shell 重新挂上 OSC 133，用户不必退出 root 丢现场
