@@ -130,7 +130,8 @@ system prompt 按变化频率切六节，ContextBreakdown 按用户可编辑性�
 
 [src/renderer/src/composables](../src/renderer/src/composables/) 用共享 composable 管理状态：
 App / File 按会话组织主机和文件；Composer / Approval 管输入与决策；
-Agent / Conversation 管实时事件与回溯；Experience 管经验编辑；Ui 管弹窗与三栏布局。
+Agent / Conversation 管实时事件与回溯；Experience 管经验编辑；Ui 管弹窗与三栏布局；
+Cli 按会话存外部 agent 的活动条目，供右栏 CLI 栏只读展示（与 Agent 工具卡共用 `ToolCard.vue`）。
 侧栏显隐、宽度与右栏 tab 的运行期真值在 `useUiStore`，settings.json 的同名字段只是
 持久化镜像：启动由 `bootstrapSettings`（同步 `settings:get-sync`）回填，提交点全量写回；
 其他模块不从 settings 读布局。隐藏保挂载；宽度是偏好值，窄窗口由 flex 收缩让位；

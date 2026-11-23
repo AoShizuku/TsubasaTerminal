@@ -17,12 +17,12 @@ import {
 } from './fixtures/launch'
 
 /**
- * CLI 通道（cli-bridge-design）：v0.12.0 只读基座 + v0.12.1 审批路径与意图旁白。
+ * CLI 通道（cli-bridge-design）：只读基座、审批路径与右栏 CLI 栏。
  *
  * 回归点：`executeTool` 是内置 Agent 与 CLI 的**共同**下游（闸门/审批/脱敏/审计一份）、
  * 句柄寻址与粘性隔离、建联包是 collectPromptInputs 的第二渲染器、退出码互不相同、
  * 审批路径（批准回流真实退出码 / 拒绝带留言 102 / 超时主动撤回 125 / --async+job）、
- * pty 路口互斥 105、意图旁白，以及安装面的"手工改过不静默覆盖"。
+ * pty 路口互斥 105、CLI 栏逐条留卡，以及安装面的"手工改过不静默覆盖"。
  */
 
 // 保持文件内串行：这里每条除 Electron 外还会频繁拉 CLI Node 子进程；v0.13.7 实测
@@ -466,11 +466,25 @@ test('exec：白名单直执行透传退出码 + --save 转存；结构性拒绝
   expect(actorOf(bench.userDataDir, 'uptime')).toBe('cli')
 })
 
-test('审批路径：批准回流真实退出码；拒绝带留言 102；超时主动撤回 125；--bg 一律审批；执行中指示按命令收口', async () => {
+test('审批路径：批准回流真实退出码；拒绝带留言 102；超时主动撤回 125；--bg 一律审批；执行中指示按命令收口；CLI 栏逐条留卡', async () => {
   const bench = await launchBench()
   await waitForPipe(bench)
   await connect(bench.page)
   await runCli(bench, ['use', 'web1-fake'])
+
+  // 右栏 CLI 栏（cli-bridge-design 七）：白名单命令走旁路 channel 终端完全不可见，
+  // 每条 exec 在发起会话的 CLI 栏留一张卡；审批路径的结局一并列入
+  await bench.page.getByTestId('cli-tab').click()
+  const cards = bench.page.getByTestId('cli-activity-card')
+  const auto = await runCli(bench, ['exec', '--agent', 'cc', '--intent', '看看当前身份', 'whoami'])
+  expect(auto.code).toBe(0)
+  await expect(cards).toHaveCount(1)
+  await expect(cards.last()).toHaveAttribute('data-status', 'executed')
+  await expect(cards.last()).toContainText('cc · exec')
+  await expect(cards.last()).toContainText('whoami')
+  await expect(cards.last()).toContainText('看看当前身份')
+  // CLI 活动只落右栏，不占输入栏状态行
+  await expect(bench.page.getByTestId('composer')).not.toContainText('执行了 whoami')
 
   // 批准：提案卡带署名与 --intent 意图（reason 槽位复用），y 后命令写入用户终端，
   // 真实退出码与输出回流 CLI——审批权唯一归属 Tsubasa Terminal，CLI 只是等结果
@@ -481,6 +495,7 @@ test('审批路径：批准回流真实退出码；拒绝带留言 102；超时�
   await expect(bench.page.getByTestId('approval-command')).toHaveText('failcmd')
   await expect(bench.page.getByTestId('approval-card')).toContainText('cli:cc')
   await expect(bench.page.getByTestId('approval-card')).toContainText('复现一次失败看输出')
+  await expect(cards.last()).toHaveAttribute('data-status', 'proposed')
   await submitApproval(bench.page, 'y')
   const approved = await approvedRun
   expect(approved.code).toBe(1)
@@ -489,6 +504,9 @@ test('审批路径：批准回流真实退出码；拒绝带留言 102；超时�
   // CLI 没有内置 Agent 的 tool-end/turn-end：命令收场后主进程要单独发 cli-exec-end，
   // 否则 composer 的"已批准 · 执行中"再没人清，永久卡住
   await expect(bench.page.getByTestId('approval-executing')).toHaveCount(0)
+  await expect(cards).toHaveCount(2)
+  await expect(cards.last()).toHaveAttribute('data-status', 'approved')
+  await expect(cards.last()).toContainText('exit 1')
 
   // 拒绝 + 留言：102（与 101"别重试同样写法"补救不同），留言原文回 stderr
   const deniedRun = runCli(bench, ['exec', '--agent', 'cc', 'failcmd'])
@@ -497,6 +515,8 @@ test('审批路径：批准回流真实退出码；拒绝带留言 102；超时�
   const denied = await deniedRun
   expect(denied.code).toBe(102)
   expect(denied.stderr).toContain('先别动，换只读方案')
+  await expect(cards.last()).toHaveAttribute('data-status', 'denied')
+  await expect(cards.last()).toContainText('先别动，换只读方案')
 
   // 超时：无人决策 → 主进程**主动撤回**退 125、卡片消失——幽灵提案（用户批准一条
   // 早已被放弃的命令）的正解就是提案不许比调用方的注意力活得久
@@ -506,6 +526,7 @@ test('审批路径：批准回流真实退出码；拒绝带留言 102；超时�
   expect(timed.code).toBe(125)
   expect(timed.stderr).toContain('撤回')
   await expect(bench.page.getByTestId('approval-card')).toHaveCount(0)
+  await expect(cards.last()).toHaveAttribute('data-status', 'withdrawn')
 
   // --bg：主进程代拼 nohup 包装（& 与重定向 LLM/CLI 手里都没有），一律审批；
   // 批准后 stderr 说清"提交成功 ≠ 运行正常"
@@ -579,19 +600,11 @@ test('--async 返回 proposalId、job 轮询到终态可重复读；白名单命
   expect(sync.stderr).toContain('--async 未生效')
 })
 
-test('pty 路口互斥退 105（内置 Agent 运行中 / 终端非空闲），只读白名单不受影响；意图旁白上屏', async () => {
+test('pty 路口互斥退 105（内置 Agent 运行中 / 终端非空闲），只读白名单不受影响', async () => {
   const bench = await launchBench({ llmProfiles: [anthropicProfile()] })
   await waitForPipe(bench)
   await connect(bench.page)
   await runCli(bench, ['use', 'web1-fake'])
-
-  // 意图旁白：白名单命令走旁路 channel 终端完全不可见，composer 状态行是唯一的 UI 槽位
-  const narrated = await runCli(bench, [
-    'exec', '--agent', 'cc', '--intent', '看看当前身份', 'whoami'
-  ])
-  expect(narrated.code).toBe(0)
-  await expect(bench.page.getByTestId('cli-narration')).toContainText('cc 执行了 whoami')
-  await expect(bench.page.getByTestId('cli-narration')).toContainText('看看当前身份')
 
   // 内置 Agent 正在跑（阻塞在自己的提案上）：审批路径 105，别让两个大脑抢一只手；
   // 只读白名单走旁路 channel 照常并行
@@ -777,6 +790,30 @@ test('安装面：shim 三件套 + skill 双目录，手工改过的 skill 重�
   expect(readFileSync(claudeSkill, 'utf-8')).toBe(handEdited)
 })
 
+test('CLI 栏跟随设置里的 CLI 通道总开关出现与收起；收起时停在 CLI 栏的退回 Agent', async () => {
+  const bench = await launchBench({ settings: { cliBridgeEnabled: false } })
+  const page = bench.page
+  await expect(page.getByTestId('cli-tab')).toHaveCount(0)
+
+  // 打开总开关：主进程起管道、写设置，渲染侧共享设置缓存跟上，栏随之出现
+  await openSettings(page, 'cli')
+  await page.getByTestId('settings-cli-bridge').click()
+  await expect(page.getByTestId('settings-cli-state')).not.toHaveText('未启用')
+  await page.getByTestId('settings-close').click()
+  await waitForPipe(bench)
+  await page.getByTestId('cli-tab').click()
+  await expect(page.getByTestId('cli-tab')).toHaveAttribute('data-state', 'active')
+  await expect(page.getByTestId('cli-panel-empty')).toBeVisible()
+
+  // 关掉总开关：栏收起，右栏退回 Agent
+  await openSettings(page, 'cli')
+  await page.getByTestId('settings-cli-bridge').click()
+  await expect(page.getByTestId('settings-cli-state')).toHaveText('未启用')
+  await page.getByTestId('settings-close').click()
+  await expect(page.getByTestId('cli-tab')).toHaveCount(0)
+  await expect(page.getByRole('tab', { name: 'Agent' })).toHaveAttribute('data-state', 'active')
+})
+
 test('安装面：Codex skill 迁到 ~/.agents，旧 ~/.codex 只清托管且未改的文件', async () => {
   const marker = '.tsubasa-ssh-install.json'
   const sha = (text: string) => createHash('sha256').update(text, 'utf-8').digest('hex')
@@ -904,6 +941,14 @@ test('--hosts 白名单并行：JSON 聚合 + 审计 batchId；目标解析 fail
   await expect(bench.page.getByTestId('approval-card')).toHaveCount(0)
   await expect(bench.page.getByTestId('multi-approval-card')).toHaveCount(0)
 
+  // CLI 栏：批次逐台各留一张卡并标出总台数（当前停在后连上的第二台）；
+  // 下面几条在解析目标阶段就整批打回，不开卡
+  await bench.page.getByTestId('cli-tab').click()
+  const cliCards = bench.page.getByTestId('cli-activity-card')
+  await expect(cliCards).toHaveCount(1)
+  await expect(cliCards).toContainText('cc · exec · 2 台')
+  await expect(cliCards).toHaveAttribute('data-status', 'executed')
+
   // 审计：两台各一条 auto-exec，batchId 相同（同一次批量靠它串起来）
   const batchLines = readAudit(bench.userDataDir).filter(
     (l) => l.kind === 'auto-exec' && l.command === 'whoami'
@@ -924,6 +969,7 @@ test('--hosts 白名单并行：JSON 聚合 + 审计 batchId；目标解析 fail
   const over = await runCli(bench, ['exec', '--hosts', eight, 'whoami'])
   expect(over.code).toBe(124)
   expect(over.stderr).toContain('上限 7 台')
+  await expect(cliCards).toHaveCount(1)
 
   // 单机 --json：与多机聚合同构（results 单元素），退出码语义不变
   await runCli(bench, ['use', 'web1-fake'])
@@ -1125,6 +1171,13 @@ test('push：二进制批准落盘、--mode 八进制、覆盖接原 mode 走 ba
   expect(buf1).toBeDefined()
   expect(Buffer.compare(buf1, payload)).toBe(0)
   expect(ssh.writtenModes()[target]).toBe(0o755)
+  // CLI 栏：push 同样留卡，写明本地 → 远端与 mode
+  await bench.page.getByTestId('cli-tab').click()
+  const pushCard = bench.page.getByTestId('cli-activity-card').last()
+  await expect(pushCard).toHaveAttribute('data-status', 'approved')
+  await expect(pushCard).toContainText('cc · push')
+  await expect(pushCard).toContainText(`${binFile} → ${target} · mode 755`)
+  await expect(pushCard).toContainText('部署测试产物')
 
   // 覆盖：未显式 --mode 接原 mode（rename 换 inode，不接就变 umask 默认）；
   // fixture 不宣告 posix-rename，v3 RENAME 目标存在即失败 → backup-rename 三步是主路径

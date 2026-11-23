@@ -30,7 +30,7 @@ import {
 } from './gate'
 import { pushFile, PushError } from './pushEngine'
 import { formatUnitId, parseUnitRef } from './unitRef'
-import { runTrustedCommand, submitProposal } from './approvals'
+import { runTrustedCommand, submitProposal, type ApprovalDecision } from './approvals'
 import { isTerminalIdle } from './terminalState'
 import { readExperienceForAgent, saveExperience, validateExperience } from './experience'
 import { getHostProfile } from './hostprofile'
@@ -297,6 +297,11 @@ export interface ToolContext {
   proposalTimeoutMs?: number
   /** 提案回执（v0.12.1 `--async`）：提案创建即回传 proposalId，供调用方立刻返回再轮询 */
   onProposalCreated?: (proposalId: string) => void
+  /**
+   * 提案决策落定即回调（CLI 活动栏）：批准后还要等执行结果回流，这段时间
+   * 调用方据此把条目从"待审批"切到"执行中"。只是通知，不影响执行路径。
+   */
+  onProposalDecided?: (outcome: ApprovalDecision['outcome']) => void
 }
 
 /**
@@ -834,6 +839,7 @@ async function runExec(ctx: ToolContext, input: Record<string, unknown>): Promis
         blankApprove: plan.blankApprove
       }
     )
+    ctx.onProposalDecided?.(decision.outcome)
     switch (decision.outcome) {
       case 'approved':
         return await collectTerminalResult(ctx, effective, 'approved', {
@@ -1346,6 +1352,7 @@ async function runPush(ctx: ToolContext, input: Record<string, unknown>): Promis
       trustable: false
     }
   )
+  ctx.onProposalDecided?.(decision.outcome)
   if (decision.outcome === 'denied') {
     return {
       content: JSON.stringify({ status: 'denied' }),

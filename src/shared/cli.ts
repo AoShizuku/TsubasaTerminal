@@ -37,7 +37,7 @@ export interface CliFlags {
   save?: boolean
   /** exec --bg：常驻服务后台化（nohup 包装主进程拼），一律进审批台 */
   bg?: boolean
-  /** exec --intent：一句话意图旁白——提案卡 reason 复用 + 自动执行的 UI 槽位 */
+  /** exec / push --intent：一句话意图——提案卡 reason 复用 + 右栏 CLI 栏卡片上显示 */
   intent?: string
   /** exec --timeout：提案挂起窗口秒数，缺省 90（小于 CC Bash 的 120s）；
    *  到点**主动撤回提案**退 125——幽灵提案（用户批准一条早已被放弃的命令）的正解 */

@@ -10,16 +10,17 @@ import type { AppSettings, RightPanelTab } from '@shared/types'
 import { updateSettings } from './useSettingsStore'
 
 /**
- * 右栏当前 tab（'agent' | 'files'）；Ctrl+Shift+A 跳 Agent 需要程序化切换，故做成受控状态。
+ * 右栏当前 tab（'agent' | 'files' | 'cli'）；Ctrl+Shift+A 跳 Agent 需要程序化切换，故做成受控状态。
  * 对外是可写 computed 而不是裸 ref：reka-ui 的 v-model 与 App 的赋值都经过
  * setter，切 tab 即持久化；启动回填写内层 ref，不触发写盘。
- * 类型放宽为 string 以匹配 reka-ui TabsRoot 的 modelValue；setter 只认两个合法值。
+ * 类型放宽为 string 以匹配 reka-ui TabsRoot 的 modelValue；setter 只认合法值。
+ * 'cli' 只在 CLI 通道总开关开着时存在，总开关关掉时由 RightPanel 退回 Agent。
  */
 const rightPanelTabInner = ref<RightPanelTab>('agent')
 const rightPanelTab = computed<string>({
   get: () => rightPanelTabInner.value,
   set: (value) => {
-    if (value !== 'agent' && value !== 'files') return
+    if (value !== 'agent' && value !== 'files' && value !== 'cli') return
     if (rightPanelTabInner.value === value) return
     rightPanelTabInner.value = value
     persistLayout()
@@ -80,7 +81,12 @@ export function hydrateLayout(settings: AppSettings): void {
   leftPaneWidth.value = clampPaneWidth('left', settings.leftPaneWidth) ?? PANE_DEFAULT_WIDTH.left
   rightPaneWidth.value =
     clampPaneWidth('right', settings.rightPaneWidth) ?? PANE_DEFAULT_WIDTH.right
-  rightPanelTabInner.value = settings.rightPanelTab === 'files' ? 'files' : 'agent'
+  rightPanelTabInner.value =
+    settings.rightPanelTab === 'files'
+      ? 'files'
+      : settings.rightPanelTab === 'cli' && settings.cliBridgeEnabled
+        ? 'cli'
+        : 'agent'
 }
 
 /**

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { AlertTriangle, Loader2, Wrench } from 'lucide-vue-next'
+import { AlertTriangle, Loader2 } from 'lucide-vue-next'
+import ToolCard, { type ToolTone } from './ToolCard.vue'
 import { TOOL_STATUS_LABEL, type ChatItem } from '@/composables/useAgentStore'
 import { copyText } from '@/lib/clipboard'
 import { confirmDialog } from '@/lib/confirm'
@@ -14,6 +15,15 @@ import { isWebUrl } from '@shared/url'
  */
 
 defineProps<{ items: ChatItem[] }>()
+
+type ToolStatus = Extract<ChatItem, { kind: 'tool' }>['status']
+
+function toolTone(status: ToolStatus): ToolTone {
+  if (status === 'executed' || status === 'approved') return 'ok'
+  if (status === 'proposed') return 'warn'
+  if (status === 'rejected' || status === 'denied' || status === 'error') return 'danger'
+  return 'muted'
+}
 
 // ---------- 消息复制：复制的是 markdown 原文，不是渲染结果 ----------
 
@@ -133,36 +143,16 @@ async function confirmOpenLink(url: string): Promise<void> {
         /><Loader2 v-if="item.live && !item.text" class="inline i-12 animate-spin text-muted-foreground" /></div>
     </div>
 
-    <div
+    <ToolCard
       v-else-if="item.kind === 'tool'"
-      class="rounded-md border px-2.5 py-1.5"
+      :title="item.name"
+      :status-label="TOOL_STATUS_LABEL[item.status]"
+      :tone="toolTone(item.status)"
+      :detail="item.detail"
+      :summary="item.summary"
       data-testid="agent-tool-card"
       :data-status="item.status"
-    >
-      <div class="flex items-center gap-1.5 text-meta">
-        <Wrench class="i-12 shrink-0 text-muted-foreground" />
-        <span class="font-mono font-medium">{{ item.name }}</span>
-        <span
-          class="ml-auto shrink-0 rounded px-1 py-px text-badge"
-          :class="{
-            'bg-muted text-muted-foreground': item.status === 'running' || item.status === 'ok',
-            'bg-ok/15 text-ok':
-              item.status === 'executed' || item.status === 'approved',
-            'bg-warn/15 text-warn': item.status === 'proposed',
-            'bg-destructive/15 text-destructive':
-              item.status === 'rejected' || item.status === 'denied' || item.status === 'error'
-          }"
-        >
-          {{ TOOL_STATUS_LABEL[item.status] }}
-        </span>
-      </div>
-      <div class="mt-0.5 break-all font-mono text-meta leading-relaxed text-muted-foreground">
-        {{ item.detail }}
-      </div>
-      <div v-if="item.summary" class="mt-0.5 text-meta text-muted-foreground">
-        {{ item.summary }}
-      </div>
-    </div>
+    />
 
     <div
       v-else-if="item.kind === 'advisory'"

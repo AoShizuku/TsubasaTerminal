@@ -15,7 +15,7 @@ import {
   onTrustChanged,
   onTrustedExec
 } from './useApprovalStore'
-import { disposeCliNarration, onCliExec } from './useCliStore'
+import { disposeCliActivity, onCliActivity } from './useCliStore'
 import { composerState } from './useComposerStore'
 import { getTerminal } from '@/lib/terminalRegistry'
 
@@ -263,14 +263,9 @@ function applyEvent(sessionId: string, event: AgentEvent): void {
     case 'trusted-exec':
       onTrustedExec(sessionId, event.command)
       break
-    case 'cli-exec':
-      // CLI 意图旁白：不进对话流（foldEvent 忽略），只落 composer 状态行
-      onCliExec(sessionId, {
-        agent: event.agent,
-        command: event.command,
-        intent: event.intent,
-        exitCode: event.exitCode
-      })
+    case 'cli-activity':
+      // CLI 活动：不进对话流（foldEvent 忽略），只落右栏 CLI 栏
+      onCliActivity(sessionId, event.activity)
       break
     case 'cli-exec-end':
       // CLI bridge 不经过内置 Agent 的 tool-end/turn-end：写 pty 的命令等待收场后
@@ -370,7 +365,7 @@ export function disposeAgentSession(sessionId: string): void {
   window.api.agent.dispose(sessionId)
   delete states[sessionId]
   disposeApprovals(sessionId)
-  disposeCliNarration(sessionId)
+  disposeCliActivity(sessionId)
 }
 
 // ---------- 一次性 wiring（App 挂载时调用） ----------

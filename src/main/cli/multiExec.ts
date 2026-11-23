@@ -20,12 +20,14 @@ import { completeMultiJob, registerJob, type MultiHostOutcome, type MultiOutcome
 import { resolveRef, type SessionRow } from './bindings'
 import {
   clampTimeout,
-  emitNarration,
   execOutcome,
+  finishOnThrow,
   grabAttention,
   ptyBusyReason,
   toolActor,
-  warnAnonymous
+  trackActivity,
+  warnAnonymous,
+  type ActivityTracker
 } from './execShared'
 import type { CliIo } from './commands'
 
@@ -45,6 +47,20 @@ interface MultiTargetCtx {
   sender: WebContents
   ctx: ToolContext
   plan: ExecPlanned
+  /** 该台右栏 CLI 栏里的那张卡：批次逐台各一条，整批未执行也逐台如实收场 */
+  activity: ActivityTracker
+}
+
+/** 整批未执行（fail-closed）时其余各台的收场：写明是被哪一台连带的 */
+function finishOthers(
+  targets: MultiTargetCtx[],
+  culprit: MultiTargetCtx,
+  status: 'rejected' | 'busy',
+  why: string
+): void {
+  for (const t of targets) {
+    if (t !== culprit) t.activity.finish(status, `整批未执行：${culprit.row.meta.name} ${why}`)
+  }
 }
 
 /** 目标解析 fail-closed（9.3.7）：任一未命中整批 103、任一歧义整批 104、重复 124。
@@ -197,28 +213,37 @@ export async function runExecMulti(
   const actor = toolActor(req)
   const intent = req.flags.intent?.trim() || undefined
   const batchId = randomUUID()
-  const targets: MultiTargetCtx[] = []
+  const senders: WebContents[] = []
   for (const row of resolved.rows) {
     const sender = getSessionSender(row.sessionId)
     if (!sender || sender.isDestroyed()) {
       io.err(`${row.meta.name}（${row.handle}）所属窗口已关闭，整批未执行\n`)
       return CLI_EXIT.NO_SESSION
     }
-    targets.push({
-      row,
-      sender,
-      ctx: {
-        sessionId: row.sessionId,
-        convId: 'cli',
-        sender,
-        signal,
-        wrap: (_source, text) => text,
-        actor,
-        allowPty: true
-      },
-      plan: null as unknown as ExecPlanned
-    })
+    senders.push(sender)
   }
+  // 窗口全在才开卡：缺窗口的那台无处落卡，只开一半的批次卡反而误导
+  const targets: MultiTargetCtx[] = resolved.rows.map((row, i) => ({
+    row,
+    sender: senders[i],
+    ctx: {
+      sessionId: row.sessionId,
+      convId: 'cli',
+      sender: senders[i],
+      signal,
+      wrap: (_source, text) => text,
+      actor,
+      allowPty: true
+    },
+    plan: null as unknown as ExecPlanned,
+    activity: trackActivity(senders[i], row.sessionId, {
+      agent: req.agent,
+      verb: 'exec',
+      detail: command,
+      intent,
+      hosts: resolved.rows.length
+    })
+  }))
 
   // 先算完 N 台 verdict 再定路径（9.3.1 硬前提）；闸门 reject 按 fail-closed 罩整批——
   // "跑得通的那几台先跑"正是批量作业最恶劣的形态
@@ -228,13 +253,19 @@ export async function runExecMulti(
     background: req.flags.bg === true,
     save_to_file: req.flags.save === true
   }
-  const plans = await Promise.all(targets.map((t) => planExec(t.ctx, input)))
+  const allActivities = targets.map((t) => t.activity)
+  const plans = await Promise.all(targets.map((t) => planExec(t.ctx, input))).catch(
+    finishOnThrow(...allActivities)
+  )
   for (let i = 0; i < plans.length; i++) {
     const plan = plans[i]
     if (!plan.planned) {
-      io.err(`# ${targets[i].row.meta.name}（${targets[i].row.handle}）被拒，整批未执行（fail-closed）：\n`)
+      const culprit = targets[i]
+      io.err(`# ${culprit.row.meta.name}（${culprit.row.handle}）被拒，整批未执行（fail-closed）：\n`)
       const o = execOutcome(plan.execution)
       for (const note of o.notes) io.err(`${note}\n`)
+      culprit.activity.settle(plan.execution)
+      finishOthers(targets, culprit, 'rejected', '被拒')
       return o.code
     }
     targets[i].plan = plan
@@ -245,8 +276,10 @@ export async function runExecMulti(
   if (targets.every((t) => t.plan.action === 'auto')) {
     const results = await Promise.all(
       targets.map(async (t) => {
-        const execution = await executeAutoPlan(t.ctx, t.plan, { batchId })
-        emitNarration(t.sender, t.row.sessionId, req.agent, command, intent, execution)
+        const execution = await executeAutoPlan(t.ctx, t.plan, { batchId }).catch(
+          finishOnThrow(t.activity)
+        )
+        t.activity.settle(execution)
         return toOutcome(t, execution)
       })
     )
@@ -259,6 +292,8 @@ export async function runExecMulti(
     const busy = ptyBusyReason(t.row.sessionId)
     if (busy) {
       io.err(`${t.row.meta.name}（${t.row.handle}）${busy}；整批未执行\n`)
+      t.activity.finish('busy', busy)
+      finishOthers(targets, t, 'busy', '会话忙')
       return CLI_EXIT.BUSY
     }
   }
@@ -293,7 +328,7 @@ export async function runExecMulti(
   // onCreated 的 proposalId 在 runBatch 内部（host-done 事件）与 --async 注册两处用
   let lastProposalId: string | null = null
 
-  const runBatch = async (
+  const runBatchInner = async (
     batchSignal: AbortSignal,
     onCreated?: (proposalId: string) => void
   ): Promise<MultiOutcome> => {
@@ -308,6 +343,7 @@ export async function runExecMulti(
         batchId,
         onCreated: (proposalId) => {
           lastProposalId = proposalId
+          for (const a of allActivities) a.proposed()
           dismissNotice = grabAttention(
             firstSender,
             targets[0].row.sessionId,
@@ -327,6 +363,17 @@ export async function runExecMulti(
       }
     ).finally(() => dismissNotice())
     if (decision.outcome !== 'approved') {
+      // 文案与单机 exec 的 uiSummary 同口径，只多一个"整批"
+      const settled =
+        decision.outcome === 'denied'
+          ? {
+              status: 'denied' as const,
+              summary: decision.comment ? `用户拒绝：${decision.comment}` : '用户已拒绝'
+            }
+          : decision.outcome === 'withdrawn'
+            ? { status: 'withdrawn' as const, summary: '审批超时，整批提案已撤回' }
+            : { status: 'aborted' as const, summary: '整批提案已取消' }
+      for (const a of allActivities) a.finish(settled.status, settled.summary)
       return {
         command,
         batchId,
@@ -340,6 +387,7 @@ export async function runExecMulti(
     // 浮层的执行/终态两阶段就是全局视图
     const failures = new Set(decision.writeFailures ?? [])
     const proposalId = lastProposalId
+    for (const a of allActivities) a.decided('approved')
     const results = await Promise.all(
       targets.map(async (t) => {
         if (failures.has(t.row.sessionId)) {
@@ -351,7 +399,9 @@ export async function runExecMulti(
               exitCode: null
             })
           }
-          return toOutcome(t, null, '批准瞬间该会话已断开，命令未写入')
+          const failure = '批准瞬间该会话已断开，命令未写入'
+          t.activity.finish('error', failure)
+          return toOutcome(t, null, failure)
         }
         const execution = await collectTerminalResult(
           { ...t.ctx, signal: batchSignal },
@@ -359,6 +409,7 @@ export async function runExecMulti(
           'approved',
           { backgroundLog: t.plan.logPath, savePath: t.plan.savePath }
         )
+        t.activity.settle(execution)
         if (proposalId) {
           emitMultiEvent(firstSender, {
             kind: 'host-done',
@@ -373,6 +424,13 @@ export async function runExecMulti(
     if (proposalId) emitMultiEvent(firstSender, { kind: 'batch-done', proposalId })
     return { command, batchId, decision: 'approved', results }
   }
+
+  const runBatch = (
+    batchSignal: AbortSignal,
+    onCreated?: (proposalId: string) => void
+  ): Promise<MultiOutcome> =>
+    // 批次中途抛异常时 N 张卡一并收场为出错，不留在"执行中"
+    runBatchInner(batchSignal, onCreated).catch(finishOnThrow(...allActivities))
 
   if (req.flags.async === true) {
     const jobController = new AbortController()

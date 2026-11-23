@@ -334,7 +334,7 @@ Ctrl+Enter / Esc / 按钮处理完成后负责回程。以下各处必须同按 
 
 布局不新造浮层。TerminalWorkspace 是"可伸缩 xterm 区 + 中栏查看器 + 底部坞"：
 
-- native 无提案时隐藏命令输入行，只留一条薄状态行（模式、CLI 旁白、脱敏、断链提示）；
+- native 无提案时隐藏命令输入行，只留一条薄状态行（模式、脱敏、断链提示）；
 - 有提案时决策行和审批卡在文档流中长高，终端区随之变矮；
 - ResizeObserver / FitAddon 负责 refit，切输入模式后额外 `nextTick + fit` 兜底一次；
 - 不把审批卡 overlay 到 xterm 底部——那里恰好是 shell prompt、sudo 密码与安装器 y/n 所在位置。

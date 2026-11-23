@@ -187,7 +187,9 @@ export function registerSettingsHandlers(): void {
       leftPaneWidth: clampPaneWidth('left', patch.leftPaneWidth) ?? current.leftPaneWidth,
       rightPaneWidth: clampPaneWidth('right', patch.rightPaneWidth) ?? current.rightPaneWidth,
       rightPanelTab:
-        patch.rightPanelTab === 'agent' || patch.rightPanelTab === 'files'
+        patch.rightPanelTab === 'agent' ||
+        patch.rightPanelTab === 'files' ||
+        patch.rightPanelTab === 'cli'
           ? patch.rightPanelTab
           : current.rightPanelTab,
       uiDensity: isDensity(patch.uiDensity) ? patch.uiDensity : current.uiDensity,

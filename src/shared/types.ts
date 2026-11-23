@@ -311,8 +311,8 @@ export interface AppSettings {
   uiFontSize: UiFontSize
 }
 
-/** 右栏 tab（Agent / 文件） */
-export type RightPanelTab = 'agent' | 'files'
+/** 右栏 tab（Agent / 文件 / CLI；CLI 只在 CLI 通道总开关开着时出现） */
+export type RightPanelTab = 'agent' | 'files' | 'cli'
 
 export type UiDensity = 'compact' | 'standard' | 'cozy'
 export const UI_DENSITIES: readonly UiDensity[] = ['compact', 'standard', 'cozy']
@@ -606,6 +606,42 @@ export type CliMultiEvent =
   /** 整批到终态（浮层转入完成态，停留到用户关掉） */
   | { kind: 'batch-done'; proposalId: string }
 
+/**
+ * CLI 活动条目的状态。running 有两段：白名单旁路执行中，或提案批准后等执行结果；
+ * busy = 会话忙 / 同目标传输在途，命令未执行；aborted = 请求方断连或会话中止，提案取消。
+ */
+export type CliActivityStatus =
+  | 'running'
+  | 'proposed'
+  | 'executed'
+  | 'approved'
+  | 'denied'
+  | 'rejected'
+  | 'withdrawn'
+  | 'busy'
+  | 'aborted'
+  | 'error'
+
+/**
+ * 右栏 CLI 栏的一条（cli-bridge-design 第七节）：外部 agent 经 tsubasa-ssh 在本会话发起的
+ * exec / push。同一 id 随进度多次推送，渲染侧按 id 覆盖。只住渲染进程内存，权威记录是 audit.jsonl。
+ */
+export interface CliActivity {
+  id: string
+  /** --agent 自报名；未带为 null（匿名 cli） */
+  agent: string | null
+  verb: 'exec' | 'push'
+  /** exec 为命令原文；push 为「本地路径 → 远端路径」 */
+  detail: string
+  intent?: string
+  status: CliActivityStatus
+  /** 结局一句话（执行结果 / 拒绝或撤回原因）；进行中为空串 */
+  summary: string
+  /** 多机批次的总台数；单机不带 */
+  hosts?: number
+  startedAt: number
+}
+
 /** Agent 对话渲染事件流（主进程 loop → 渲染进程，增量推送） */
 export type AgentEvent =
   | { kind: 'user'; text: string; attachedUnits: number[] }
@@ -635,10 +671,11 @@ export type AgentEvent =
   /** 已信任动词免审批直接写入用户终端执行——渲染侧与"批准"走同一套运行态处理 */
   | { kind: 'trusted-exec'; command: string }
   /**
-   * CLI 意图旁白：白名单命令经旁路 channel 自动执行时终端完全不可见，
-   * 这个事件是它唯一的 UI 槽位（composer 状态行）。不进对话流、不落盘。
+   * CLI 活动（右栏 CLI 栏）：外部 agent 的 exec / push 开始、挂审批、批准、终态各推一次，
+   * 渲染侧按 activity.id 覆盖。白名单命令经旁路 channel 执行时终端完全不可见，这是它
+   * 在界面上的落点。不进对话流、不落盘。
    */
-  | { kind: 'cli-exec'; agent: string; command: string; intent?: string; exitCode: number | null }
+  | { kind: 'cli-activity'; activity: CliActivity }
   /**
    * CLI bridge 写入用户终端的命令，本次请求已不再等它（拿到转录结果，或等待窗口
    * 超时/请求方断连）——清理 composer 的执行中指示。CLI 没有 turn-end，这是它的
@@ -648,7 +685,7 @@ export type AgentEvent =
   /**
    * transfer 传输进度（v0.13.2 CLI push）：批准到 rename 落地之间可能几十秒，
    * composer 状态行显示"已批准 · 执行中 · N%"。percent=null 表示传输结束（成功或
-   * 失败都清指示）。不进对话流、不落盘（与 cli-exec 同款瞬态）。
+   * 失败都清指示）。不进对话流、不落盘（与 cli-activity 同款瞬态）。
    */
   | { kind: 'transfer-progress'; label: string; percent: number | null }
   | { kind: 'notice'; text: string }

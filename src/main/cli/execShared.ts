@@ -1,8 +1,13 @@
 import { BrowserWindow, Notification, type WebContents } from 'electron'
+import { randomUUID } from 'crypto'
 import { CLI_EXIT, type CliRequest } from '../../shared/cli'
-import type { AgentEvent } from '../../shared/types'
+import type { AgentEvent, CliActivity, CliActivityStatus } from '../../shared/types'
 import { isAgentRunning } from '../llm/loop'
-import { hasMultiPendingProposal, hasPendingProposal } from '../llm/approvals'
+import {
+  hasMultiPendingProposal,
+  hasPendingProposal,
+  type ApprovalDecision
+} from '../llm/approvals'
 import { isTerminalIdle, terminalBusyText } from '../llm/terminalState'
 import type { ToolExecution } from '../llm/tools'
 import type { CliIo } from './commands'
@@ -132,27 +137,95 @@ export function grabAttention(
 }
 
 /**
- * 意图旁白：白名单命令经旁路 channel 自动执行，用户终端完全不可见——
- * 发一个渲染事件补上这个洞（composer 状态行）。审批路径不发：提案卡本身就是旁白。
+ * 执行结果 → CLI 活动栏的状态与一句话结局。分流看 raw.data 的结构化标记，
+ * 与 execOutcome 的退出码分流同口径：撤回、会话忙、中止都不是"被闸门拒绝"。
  */
-export function emitNarration(
+export function activityOutcome(execution: ToolExecution): {
+  status: CliActivityStatus
+  summary: string
+} {
+  const data = (execution.raw?.data ?? {}) as Record<string, unknown>
+  const summary = execution.uiSummary
+  if (execution.uiStatus === 'rejected') {
+    if (data.withdrawn) return { status: 'withdrawn', summary }
+    if (data.busy || data.transferBusy) return { status: 'busy', summary: rawText(execution) }
+    if (data.aborted) return { status: 'aborted', summary }
+    return { status: 'rejected', summary }
+  }
+  if (execution.uiStatus === 'denied') return { status: 'denied', summary }
+  if (execution.isError || execution.uiStatus === 'error') return { status: 'error', summary }
+  if (execution.uiStatus === 'approved') return { status: 'approved', summary }
+  return { status: 'executed', summary }
+}
+
+/**
+ * CLI 活动栏的一条（cli-bridge-design 第七节）：外部 agent 的每次 exec / push 在发起会话的
+ * 右栏 CLI 栏里占一张卡，开始、挂审批、批准、终态各推一次，渲染侧按 id 覆盖。白名单命令
+ * 经旁路 channel 执行时终端完全不可见，这张卡是它在界面上唯一的落点。
+ * 多机批次逐台各开一条（hosts 记总台数）。只做 UX 推送，不实现安全逻辑。
+ */
+export interface ActivityTracker {
+  /** 提案已挂上审批台 */
+  proposed(): void
+  /** 提案决策落定：批准切回执行中；拒绝 / 撤回 / 中止由随后的 settle 带原因收场 */
+  decided(outcome: ApprovalDecision['outcome']): void
+  /** 执行结果到手 */
+  settle(execution: ToolExecution): void
+  /** 没有执行结果可翻译的收场（批次整体未执行、写入失败、异常） */
+  finish(status: CliActivityStatus, summary: string): void
+}
+
+export function trackActivity(
   sender: WebContents,
   sessionId: string,
-  agent: string | undefined,
-  command: string,
-  intent: string | undefined,
-  execution: ToolExecution
-): void {
-  if (execution.uiStatus !== 'executed') return
-  if (sender.isDestroyed()) return
-  const event: AgentEvent = {
-    kind: 'cli-exec',
-    agent: agent ?? 'cli',
-    command,
-    intent,
-    exitCode: typeof execution.raw?.exitCode === 'number' ? execution.raw.exitCode : null
+  base: Pick<CliActivity, 'verb' | 'detail' | 'hosts'> & {
+    agent: string | undefined
+    intent: string | undefined
   }
-  sender.send('agent:event', sessionId, event)
+): ActivityTracker {
+  const activity: CliActivity = {
+    id: randomUUID(),
+    agent: base.agent ?? null,
+    verb: base.verb,
+    detail: base.detail,
+    ...(base.intent ? { intent: base.intent } : {}),
+    ...(base.hosts !== undefined ? { hosts: base.hosts } : {}),
+    status: 'running',
+    summary: '',
+    startedAt: Date.now()
+  }
+  // 终态后不再推送：多机批次的整批收场与逐台结果可能先后到达，先到的为准
+  let settled = false
+  const push = (status: CliActivityStatus, summary: string): void => {
+    if (settled) return
+    activity.status = status
+    activity.summary = summary
+    if (status !== 'running' && status !== 'proposed') settled = true
+    if (sender.isDestroyed()) return
+    const event: AgentEvent = { kind: 'cli-activity', activity: { ...activity } }
+    sender.send('agent:event', sessionId, event)
+  }
+  push('running', '')
+  return {
+    proposed: () => push('proposed', ''),
+    decided: (outcome) => {
+      if (outcome === 'approved') push('running', '已批准，等待执行结果')
+    },
+    settle: (execution) => {
+      const o = activityOutcome(execution)
+      push(o.status, o.summary)
+    },
+    finish: (status, summary) => push(status, summary)
+  }
+}
+
+/** 执行抛异常时活动卡照样收场（再原样抛出），否则它永远停在"执行中" */
+export function finishOnThrow(...activities: ActivityTracker[]): (err: unknown) => never {
+  return (err) => {
+    const summary = `执行异常：${err instanceof Error ? err.message : String(err)}`
+    for (const activity of activities) activity.finish('error', summary)
+    throw err
+  }
 }
 
 export function rawText(execution: ToolExecution): string {

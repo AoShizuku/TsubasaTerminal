@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { FileText, Lightbulb, Loader2, ShieldAlert, ShieldCheck, Terminal } from 'lucide-vue-next'
+import { FileText, Lightbulb, Loader2, ShieldAlert, ShieldCheck } from 'lucide-vue-next'
 import type { AgentProposal, RedactionSummaryEntry } from '@shared/types'
 import {
   composerState,
@@ -19,7 +19,6 @@ import {
   toggleViewer
 } from '@/composables/useApprovalStore'
 import { clearSuggestion, suggestState } from '@/composables/useSuggestStore'
-import { cliNarration } from '@/composables/useCliStore'
 import {
   multiApprovalState,
   multiPending,
@@ -324,9 +323,6 @@ function onApproveClick(): void {
 
 /** 补全 L3 建议（LLM 停顿时刻进场）：draft 为空时以 ghost text 呈现 */
 const suggestion = computed(() => suggestState(props.sessionId).suggestion)
-
-/** CLI 意图旁白：旁路 channel 自动执行终端不可见，这条状态行是唯一的 UI 槽位 */
-const cliNote = computed(() => cliNarration(props.sessionId))
 
 /** Tab 补全候选面板（瞬态 UI，切会话即弃） */
 interface CompletionPanel {
@@ -894,20 +890,6 @@ onBeforeUnmount(() => {
       >
         <Lightbulb class="i-12 shrink-0" />
         <span class="truncate">{{ suggestion.explanation }}（→ 接受）</span>
-      </span>
-      <!-- CLI 意图旁白：白名单命令经旁路 channel 自动执行，终端不可见——
-           这里补上"谁刚做了什么、为什么"；过去时措辞，30s 自动淡出 -->
-      <span
-        v-if="cliNote"
-        class="flex min-w-0 items-center gap-1 text-info"
-        :title="`${cliNote.agent} 经 CLI 通道执行：${cliNote.command}${cliNote.intent ? `（${cliNote.intent}）` : ''} · exit ${cliNote.exitCode ?? '?'}`"
-        data-testid="cli-narration"
-      >
-        <Terminal class="i-12 shrink-0" />
-        <span class="truncate">
-          {{ cliNote.agent }} 执行了 {{ cliNote.command
-          }}{{ cliNote.intent ? ` — ${cliNote.intent}` : '' }}
-        </span>
       </span>
       <!-- 多机审批路标（9.5）：composer 的 Ctrl+Enter 被拦截期间，把
            "我被挡住了"变成"我被挡住 62 秒"；拦截发生时附加即时提示 3 秒 -->

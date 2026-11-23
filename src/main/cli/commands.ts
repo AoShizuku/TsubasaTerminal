@@ -17,13 +17,14 @@ import { renderMultiOutcome, runExecMulti } from './multiExec'
 import {
   approvalBusyReason,
   clampTimeout,
-  emitNarration,
   execOutcome,
+  finishOnThrow,
   grabAttention,
   ptyBusyReason,
   rawText,
   renderExecOutcome,
   toolActor,
+  trackActivity,
   warnAnonymous,
   writeBody
 } from './execShared'
@@ -38,14 +39,14 @@ import {
 } from './bindings'
 
 /**
- * CLI 命令面（v0.12.0 只读基座，v0.12.1 审批路径 + 意图旁白，cli-bridge-design 2.3 / 五）。
+ * CLI 命令面（cli-bridge-design 2.3 / 五 / 七）。
  *
  * 这一层**不实现任何安全逻辑**：闸门、脱敏、审计、转录回流、审批台全挂在
  * `executeTool` 下游，CLI 只是它的第二个调用方（第一个是 `loop.ts`）。这里只做三件事
  * ——寻址、把工具结果翻成"纯 stdout + 真实退出码"、把失败翻成互不相同的退出码。
- * v0.12.1 的审批路径同理：提案生命周期在 approvals.ts（超时撤回也是），这里只是
+ * 审批路径同理：提案生命周期在 approvals.ts（超时撤回也是），这里只是
  * 把窗口参数递进去、把结果翻出来，外加两件 UX——挂起瞬间拽注意力（通知 + flashFrame）、
- * 自动执行的意图旁白（旁路 channel 终端不可见，事件是它唯一的 UI 槽位）。
+ * 右栏 CLI 活动栏（旁路 channel 终端不可见，每条 exec / push 都在那里留一张卡）。
  */
 
 export interface CliIo {
@@ -437,7 +438,10 @@ async function runTool(
   // v0.12.1：exec 翻开审批路径（allowPty + 互斥闸 + 挂起窗口 + 提案回执）；
   // 其余工具不传，保持只读形态
   extras?: Partial<
-    Pick<ToolContext, 'allowPty' | 'ptyGuard' | 'proposalTimeoutMs' | 'onProposalCreated'>
+    Pick<
+      ToolContext,
+      'allowPty' | 'ptyGuard' | 'proposalTimeoutMs' | 'onProposalCreated' | 'onProposalDecided'
+    >
   >
 ): Promise<ToolExecution> {
   return await executeTool(
@@ -543,7 +547,7 @@ async function runExec(
   warnAnonymous(io, req)
   const intent = req.flags.intent?.trim() || undefined
   const timeoutSec = clampTimeout(req.flags.timeout)
-  // 意图旁白复用提案卡 reason 槽位（cli-bridge-design 七）：署名 + 一句话意图。
+  // 意图复用提案卡 reason 槽位（cli-bridge-design 七）：署名 + 一句话意图。
   // 没写 --intent 就如实说没写——空白解释比装作有解释诚实
   const agentLabel = req.agent ? `cli:${req.agent}` : 'cli（匿名）'
   const reason = intent
@@ -557,6 +561,12 @@ async function runExec(
     background: req.flags.bg === true,
     save_to_file: req.flags.save === true
   }
+  const activity = trackActivity(scoped.sender, scoped.binding.sessionId, {
+    agent: req.agent,
+    verb: 'exec',
+    detail: command,
+    intent
+  })
   // 撤下通知的闭包（提案到终态时调）：没起通知时是 no-op
   let dismissNotice: () => void = () => {}
   const extras = (onCreated?: (proposalId: string) => void): Parameters<typeof runTool>[5] => ({
@@ -564,6 +574,7 @@ async function runExec(
     ptyGuard: () => ptyBusyReason(scoped.binding.sessionId),
     proposalTimeoutMs: timeoutSec * 1000,
     onProposalCreated: (proposalId) => {
+      activity.proposed()
       dismissNotice = grabAttention(
         scoped.sender,
         scoped.binding.sessionId,
@@ -571,7 +582,8 @@ async function runExec(
         `${scoped.meta.name}：${intent ?? command}`
       )
       onCreated?.(proposalId)
-    }
+    },
+    onProposalDecided: (outcome) => activity.decided(outcome)
   })
 
   // --async：提案挂起即返回 proposalId，之后 `job <id>` 轮询——适合
@@ -587,7 +599,7 @@ async function runExec(
       'exec',
       input,
       extras((proposalId) => resolveCreated(proposalId))
-    )
+    ).catch(finishOnThrow(activity))
     const first = await Promise.race([
       execPromise.then((execution) => ({ kind: 'done' as const, execution })),
       created.then((proposalId) => ({ kind: 'proposed' as const, proposalId }))
@@ -595,7 +607,7 @@ async function runExec(
     if (first.kind === 'done') {
       // 没有提案产生（白名单直执行 / 信任免问 / 闸门拒绝 / 会话忙）：无事可异步，
       // 按同步语义直接返回，不留空 job
-      emitNarration(scoped.sender, scoped.binding.sessionId, req.agent, command, intent, first.execution)
+      activity.settle(first.execution)
       io.err('# 该命令未进入审批（已直接执行或被拒），--async 未生效，以下为同步结果\n')
       return req.flags.json === true
         ? renderJsonSingle(io, scoped, command, first.execution)
@@ -608,9 +620,10 @@ async function runExec(
       agent: req.agent,
       command
     })
-    // 落 job 与撤通知是同一件事的两面：提案已到终态，通知没有继续挂着的理由
+    // 落 job、撤通知、活动卡收场是同一件事的几面：提案已到终态
     const settle = (execution: ToolExecution): void => {
       dismissNotice()
+      activity.settle(execution)
       completeJob(first.proposalId, execution)
     }
     void execPromise.then(
@@ -639,10 +652,10 @@ async function runExec(
   // 挂起窗口由 approvals 的超时撤回兜底（125），不靠对端杀进程
   // finally 里包一层箭头而不是直接传 dismissNotice：后者会把此刻的 no-op 定死，
   // 而真正的撤回闭包要等 onProposalCreated 才赋上
-  const execution = await runTool(req, scoped, signal, 'exec', input, extras()).finally(() =>
-    dismissNotice()
-  )
-  emitNarration(scoped.sender, scoped.binding.sessionId, req.agent, command, intent, execution)
+  const execution = await runTool(req, scoped, signal, 'exec', input, extras())
+    .catch(finishOnThrow(activity))
+    .finally(() => dismissNotice())
+  activity.settle(execution)
   return req.flags.json === true
     ? renderJsonSingle(io, scoped, command, execution)
     : renderExecOutcome(io, execution)
@@ -696,6 +709,13 @@ async function runPushCmd(
     reason,
     ...(req.flags.mode !== undefined ? { mode: req.flags.mode } : {})
   }
+  const activity = trackActivity(scoped.sender, scoped.binding.sessionId, {
+    agent: req.agent,
+    verb: 'push',
+    // mode 已在 CLI 侧按八进制解析成数值，回显同样按八进制
+    detail: `${localPath} → ${remotePath}${req.flags.mode !== undefined ? ` · mode ${req.flags.mode.toString(8)}` : ''}`,
+    intent
+  })
   let dismissNotice: () => void = () => {}
   const extras = (onCreated?: (proposalId: string) => void): Parameters<typeof runTool>[5] => ({
     allowPty: false,
@@ -704,6 +724,7 @@ async function runPushCmd(
     ptyGuard: () => approvalBusyReason(scoped.binding.sessionId),
     proposalTimeoutMs: timeoutSec * 1000,
     onProposalCreated: (proposalId) => {
+      activity.proposed()
       dismissNotice = grabAttention(
         scoped.sender,
         scoped.binding.sessionId,
@@ -711,7 +732,8 @@ async function runPushCmd(
         `${scoped.meta.name}：${intent ?? `push ${localPath}`}`
       )
       onCreated?.(proposalId)
-    }
+    },
+    onProposalDecided: (outcome) => activity.decided(outcome)
   })
   const jobCommand = `push ${localPath} -> ${remotePath}`
 
@@ -727,12 +749,13 @@ async function runPushCmd(
       'push',
       input,
       extras((proposalId) => resolveCreated(proposalId))
-    )
+    ).catch(finishOnThrow(activity))
     const first = await Promise.race([
       execPromise.then((execution) => ({ kind: 'done' as const, execution })),
       created.then((proposalId) => ({ kind: 'proposed' as const, proposalId }))
     ])
     if (first.kind === 'done') {
+      activity.settle(first.execution)
       io.err('# 该请求未进入审批（校验失败或会话忙），--async 未生效，以下为同步结果\n')
       return renderExecOutcome(io, first.execution)
     }
@@ -745,6 +768,7 @@ async function runPushCmd(
     })
     const settle = (execution: ToolExecution): void => {
       dismissNotice()
+      activity.settle(execution)
       completeJob(first.proposalId, execution)
     }
     void execPromise.then(
@@ -769,9 +793,10 @@ async function runPushCmd(
     return CLI_EXIT.OK
   }
 
-  const execution = await runTool(req, scoped, signal, 'push', input, extras()).finally(() =>
-    dismissNotice()
-  )
+  const execution = await runTool(req, scoped, signal, 'push', input, extras())
+    .catch(finishOnThrow(activity))
+    .finally(() => dismissNotice())
+  activity.settle(execution)
   return renderExecOutcome(io, execution)
 }
 

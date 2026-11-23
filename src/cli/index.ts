@@ -74,7 +74,7 @@ const USAGE = `tsubasa-ssh v${__CLI_VERSION__} — 复用 Tsubasa Terminal 已�
       --hosts <a,b,c>    exec 多机目标（逗号分隔别名/句柄，显式列举，无 all）；
                          任一未命中/歧义整批失败（103/104），不自动开会话——先逐台 use
       --agent <名>       自报家门：审计记 cli:<名>。**每条命令都带上**；漏带该条记为匿名 cli
-      --intent <一句话>  本条 exec 的意图旁白：审批卡上给用户看的解释；自动执行时也会上屏
+      --intent <一句话>  本条 exec / push 的意图：审批卡与界面 CLI 栏里给用户看的解释
       --timeout <秒>     exec 提案挂起窗口，缺省 90；超时主动撤回提案退 125（命令未执行）
       --json             exec 的 stdout 改为结构化 JSON（--hosts 时自动启用）
   -h, --help             本帮助

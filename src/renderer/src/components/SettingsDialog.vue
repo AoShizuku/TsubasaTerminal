@@ -218,6 +218,8 @@ async function toggleCliBridge(): Promise<void> {
   cliBusy.value = true
   try {
     cli.value = await window.api.cli.setBridge(!cli.value.enabled)
+    // 总开关落在 settings.json：共享缓存要跟上，右栏 CLI 栏随它出现 / 收起
+    await loadSettings()
   } finally {
     cliBusy.value = false
   }

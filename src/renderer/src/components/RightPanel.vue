@@ -5,12 +5,29 @@
  * "转发 props + 拼一串 Tailwind"，中间层没有存在的理由。
  * `role="tab"` 由 reka-ui 原生给出，按角色选 tab 的 e2e 一条都不用改。
  */
+import { computed, watch } from 'vue'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import AgentPanel from './panels/AgentPanel.vue'
+import CliPanel from './panels/CliPanel.vue'
 import FilePanel from './panels/FilePanel.vue'
+import { useAppStore } from '@/composables/useAppStore'
+import { useSettingsStore } from '@/composables/useSettingsStore'
 import { useUiStore } from '@/composables/useUiStore'
+import { cliUnread } from '@/composables/useCliStore'
 
 const { rightPanelTab } = useUiStore()
+const { settings } = useSettingsStore()
+const { activeSessionId } = useAppStore()
+
+/** CLI 栏跟着 CLI 通道总开关走：通道关着就没有外部 agent 能来，栏也不占位 */
+const cliEnabled = computed(() => settings.value?.cliBridgeEnabled === true)
+
+/** 新条目到达而用户停在别的栏：标签上亮一个点，不替用户切栏 */
+const cliDot = computed(() => rightPanelTab.value !== 'cli' && cliUnread(activeSessionId.value))
+
+watch(cliEnabled, (on) => {
+  if (!on && rightPanelTab.value === 'cli') rightPanelTab.value = 'agent'
+})
 </script>
 
 <template>
@@ -21,6 +38,10 @@ const { rightPanelTab } = useUiStore()
         <TabsList class="seg w-full">
           <TabsTrigger value="agent" class="flex-1">Agent</TabsTrigger>
           <TabsTrigger value="files" class="flex-1">文件</TabsTrigger>
+          <TabsTrigger v-if="cliEnabled" value="cli" class="flex-1" data-testid="cli-tab">
+            CLI
+            <span v-if="cliDot" class="size-1.5 rounded-full bg-info" data-testid="cli-tab-unread" />
+          </TabsTrigger>
         </TabsList>
       </div>
       <!-- forceMount：切走不卸载，文件树状态与滚动位置得以保留 -->
@@ -38,6 +59,15 @@ const { rightPanelTab } = useUiStore()
         data-return-home
       >
         <FilePanel />
+      </TabsContent>
+      <TabsContent
+        v-if="cliEnabled"
+        value="cli"
+        force-mount
+        class="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        data-return-home
+      >
+        <CliPanel />
       </TabsContent>
     </TabsRoot>
   </aside>
