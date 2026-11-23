@@ -10,7 +10,7 @@
 | Electron 主进程 | [src/main](../src/main/) | SSH 会话、凭据、存储、模型调用、闸门、审批、审计、CLI 服务 |
 | preload | [src/preload](../src/preload/) | contextBridge 暴露类型化 `window.api` |
 | Vue 渲染进程 | [src/renderer/src](../src/renderer/src/) | xterm 终端、三栏 UI、composable 状态、读屏与人机交互 |
-| 共享契约 | [types.ts](../src/shared/types.ts)、[cli.ts](../src/shared/cli.ts)、[shell.ts](../src/shared/shell.ts)、[layout.ts](../src/shared/layout.ts)、[url.ts](../src/shared/url.ts) | IPC 类型、CLI 协议、shell 参数转义、三栏几何常量与夹值及外开链接白名单 |
+| 共享契约 | [types.ts](../src/shared/types.ts)、[cli.ts](../src/shared/cli.ts)、[shell.ts](../src/shared/shell.ts)、[layout.ts](../src/shared/layout.ts)、[url.ts](../src/shared/url.ts) | IPC 类型、CLI 协议、shell 参数转义、窗口下限与三栏几何常量及夹值、外开链接白名单 |
 | 外部 CLI | [src/cli/index.ts](../src/cli/index.ts) | 单文件入口，经命名管道请求主进程；只能 import Node 内置模块与 shared/cli |
 | 构建 | [electron.vite.config.ts](../electron.vite.config.ts)、[build-cli.mjs](../scripts/build-cli.mjs) | 应用三端构建、版本注入与 CLI 单独打包 |
 
@@ -144,6 +144,14 @@ Cli 按会话存外部 agent 的活动条目，供右栏 CLI 栏只读展示（�
 与左栏显隐无关；标题栏按钮的 Enter / Space 激活由全局兜底输入路由豁免。
 `Dlg` 的遮罩 DOM 通过 `useDialogScrim` 登记/释放实际层数，`TitleBar` 同步合成原生
 按钮背景与符号色；不从单个设置弹窗的 open 状态推断全局遮罩，也不把右键菜单当遮罩。
+
+主窗口落位只在主进程：`windowState.ts` 建窗前读 userData/window-state.json，移动、缩放后
+防抖落盘、关窗同步落盘，不进 settings.json，也不经过渲染进程。存的是还原态位置尺寸加最大化标志，
+恢复时先按还原态建窗再最大化。校验与回落是 `windowPlacement.ts` 的纯函数：无记录取主屏工作区
+85% 居中；有记录归到重叠最多的屏并整窗推回工作区，与所有屏都不相交则回主屏居中；尺寸不低于
+`shared/layout.ts` 的 `WINDOW_MIN_SIZE`。混合缩放多屏下，建窗按当前屏缩放换算，所以建窗后
+再 `setBounds` 一次；分数缩放的取整误差以落位后的测量值为锚，用户未改动的维度存回请求值，
+避免每次重启涨一两个像素。
 
 命令草稿与审批决策草稿分槽，Enter 归终端、Ctrl+Enter 归审批；
 native 模式收起固定命令行，以 Ctrl+Shift+Y 借焦点给独立决策输入。

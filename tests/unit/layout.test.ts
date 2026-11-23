@@ -4,21 +4,24 @@ import {
   PANE_DEFAULT_WIDTH,
   PANE_MAX_WIDTH,
   PANE_MIN_WIDTH,
+  WINDOW_MIN_SIZE,
   clampPaneWidth,
   maxPaneWidth
 } from '../../src/shared/layout'
 
 /**
- * 三栏几何常量与夹值。数字之间的关系是硬约束——窗口 minWidth 960 下
+ * 三栏几何常量与夹值。数字之间的关系是硬约束——最小窗口宽度下
  * 三栏各守下限必须放得下，默认布局不能在最小窗口就触发收缩——改数先在这里红。
  */
 describe('pane geometry constants', () => {
-  it('three minimums fit the 960px minimum window', () => {
-    expect(PANE_MIN_WIDTH.left + PANE_MIN_WIDTH.right + MIDDLE_MIN_WIDTH).toBeLessThanOrEqual(960)
+  it('three minimums fit the minimum window', () => {
+    expect(PANE_MIN_WIDTH.left + PANE_MIN_WIDTH.right + MIDDLE_MIN_WIDTH).toBeLessThanOrEqual(
+      WINDOW_MIN_SIZE.width
+    )
   })
 
   it('default layout leaves the middle at least MIDDLE_MIN_WIDTH at the minimum window', () => {
-    expect(960 - PANE_DEFAULT_WIDTH.left - PANE_DEFAULT_WIDTH.right).toBeGreaterThanOrEqual(
+    expect(WINDOW_MIN_SIZE.width - PANE_DEFAULT_WIDTH.left - PANE_DEFAULT_WIDTH.right).toBeGreaterThanOrEqual(
       MIDDLE_MIN_WIDTH
     )
   })

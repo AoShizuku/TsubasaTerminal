@@ -20,8 +20,11 @@ import { registerExperienceHandlers } from './llm/experience'
 import { registerSuggestHandlers } from './llm/suggest'
 import { bootCliBridge, disposeCliBridge, registerCliHandlers } from './cli'
 import { initialWindowChrome, registerWindowChromeHandlers } from './windowChrome'
+import { initialWindowPlacement, loadWindowState, trackWindowState } from './windowState'
+import { parseSizeSpec } from './windowPlacement'
 import { TITLE_BAR_HEIGHT } from '../shared/types'
 import { APP_DATA_DIR_NAME } from '../shared/cli'
+import { WINDOW_MIN_SIZE } from '../shared/layout'
 
 // e2e 测试通过该环境变量隔离 userData，避免污染真实配置；
 // 否则固定为 %APPDATA%/TsubasaTerminal，不随显示名（含空格）变化
@@ -37,13 +40,18 @@ function createWindow(): void {
   const backgroundE2e = is.dev && process.env['TSUBASATERMINAL_E2E_HIDDEN'] === '1'
   // 原生配色按已存方案派生：settings 在建窗前已读热
   const chrome = initialWindowChrome(getSettingsSync().terminalTheme)
+  // 首次启动按主屏比例取尺寸会随机器变化；e2e 用它锁定基线，同样锁在开发态
+  const e2eDefaultSize = is.dev
+    ? parseSizeSpec(process.env['TSUBASATERMINAL_E2E_WINDOW_SIZE'])
+    : undefined
+  const placement = initialWindowPlacement(e2eDefaultSize)
   const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    x: backgroundE2e ? -10000 : undefined,
-    y: backgroundE2e ? -10000 : undefined,
-    minWidth: 960,
-    minHeight: 600,
+    width: placement.width,
+    height: placement.height,
+    x: backgroundE2e ? -10000 : placement.x,
+    y: backgroundE2e ? -10000 : placement.y,
+    minWidth: WINDOW_MIN_SIZE.width,
+    minHeight: WINDOW_MIN_SIZE.height,
     show: false,
     opacity: backgroundE2e ? 0 : 1,
     skipTaskbar: backgroundE2e,
@@ -67,9 +75,25 @@ function createWindow(): void {
     }
   })
 
+  // 混合缩放多屏：建窗与 setBounds 都按窗口**当前**所在屏的缩放换算尺寸，
+  // 落到缩放不同的屏上会差一个缩放比。窗口已到目标屏后再设一次才准
+  const requested = {
+    x: placement.x,
+    y: placement.y,
+    width: placement.width,
+    height: placement.height
+  }
+  if (!backgroundE2e) mainWindow.setBounds(requested)
+  trackWindowState(mainWindow, requested)
+
   mainWindow.on('ready-to-show', () => {
+    // 后台车道不恢复最大化：最大化会把窗口从屏幕外拉回桌面
     if (backgroundE2e) mainWindow.showInactive()
-    else mainWindow.show()
+    else {
+      // 先按还原态尺寸建窗再最大化：取消最大化时回到记住的尺寸，而不是建窗默认值
+      if (placement.maximized) mainWindow.maximize()
+      mainWindow.show()
+    }
   })
 
   // 外开只放行 http / https：渲染进程的确认框不是唯一的闸，
@@ -122,8 +146,9 @@ app.whenReady().then(async () => {
   registerSuggestHandlers()
   registerCliHandlers()
   // 建窗前把 settings 读热：渲染进程首帧前用 settings:get-sync 同步取
-  // 布局与外观，缓存必须在 preload 跑起来之前就位。一个小 JSON 的读取，不拖首屏
-  await loadSettings()
+  // 布局与外观，缓存必须在 preload 跑起来之前就位；窗口落位记录同理在建窗前读。
+  // 两个小 JSON 并行读取，不拖首屏
+  await Promise.all([loadSettings(), loadWindowState()])
   createWindow()
   // CLI 通道装配放在建窗之后：起管道 / 自愈 shim / skill 版本戳重渲染都不该拖慢首屏，
   // 且总开关默认关时这里几乎零成本

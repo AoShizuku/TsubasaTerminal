@@ -124,6 +124,9 @@ export async function launchApp(
     env: {
       ...(process.env as Record<string, string>),
       TSUBASATERMINAL_USER_DATA: userDataDir,
+      // 首次启动默认按主屏比例取尺寸；锁成固定基线，布局断言不随开发机屏幕变化。
+      // 只作用于没有窗口记录时，重启恢复的用例照常读 window-state.json；传空串可看真实默认
+      TSUBASATERMINAL_E2E_WINDOW_SIZE: '1280x800',
       ...(options?.env ?? {})
     }
   })

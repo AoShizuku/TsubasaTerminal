@@ -69,6 +69,10 @@ daily 与 `@daily` 取交集；桌面车道取 `@headed`，后台取其补集。
 
 - [launch.ts](../e2e/fixtures/launch.ts) 用 `TSUBASATERMINAL_USER_DATA` 隔离 userData，
   模型配置预置用 `plain:` 测试密钥，免 safeStorage 环境差异。
+  首次启动的窗口尺寸本按主屏比例计算，fixture 用 `TSUBASATERMINAL_E2E_WINDOW_SIZE=1280x800`
+  锁成固定基线（仅开发态生效，只作用于没有 window-state.json 时）；传空串可看真实默认。
+  窗口尺寸与位置的断言放桌面车道：后台车道的窗口在屏幕外，尺寸按最近一块屏的缩放换算，
+  混合缩放的机器上会差一两个像素。
 - CLI 安装测试用 `TSUBASATERMINAL_CLI_HOME` / `TSUBASATERMINAL_CLI_SKIP_PATH` 将落点改到沙盒，
   **绝不能修改开发机真实 PATH**。
 - PowerShell shim 回归要求 PATH 上同时有 `powershell.exe`（5.1）和 `pwsh.exe`（7），

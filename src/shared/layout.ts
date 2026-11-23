@@ -2,12 +2,15 @@
  * 三栏几何的单一来源：主进程用它夹持久化值，渲染进程用它夹拖拽实时值。
  * 两边各抄一份数字就是"两处重复即两处漂移"。
  *
- * 数字与窗口 `minWidth: 960` 的关系：LEFT_MIN + RIGHT_MIN + MIDDLE_MIN = 840 ≤ 960，
+ * 数字与最小窗口宽 960 的关系：LEFT_MIN + RIGHT_MIN + MIDDLE_MIN = 840 ≤ 960，
  * 最小窗口下三栏各守住下限仍放得下；默认态 960 − (240 + 288) = 432 ≥ MIDDLE_MIN，
  * 默认布局在最小窗口不触发 flex 收缩。改任何一个数都要重算这两条。
  */
 
 export type PaneSide = 'left' | 'right'
+
+/** 窗口下限：建窗的 minWidth / minHeight 与落位夹值共用；弹窗尺寸也按它设计 */
+export const WINDOW_MIN_SIZE = { width: 960, height: 600 } as const
 
 /** 默认宽度 = v0.13.3 之前写死的 `w-60` / `w-72` */
 export const PANE_DEFAULT_WIDTH: Record<PaneSide, number> = { left: 240, right: 288 }
