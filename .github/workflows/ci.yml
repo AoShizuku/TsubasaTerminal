@@ -1,7 +1,7 @@
 # CI —— 推送与 PR 跑静态检查和三层快速测试。
 #
 # **不跑 e2e**：Playwright 要拉起真的 Electron 窗口，且 CLI 回归依赖 Windows 命名管道
-# （`\\.\pipe\`）。e2e 在本地跑，合回 main 前必须全绿（见 CONTRIBUTING.md）。
+# （`\\.\pipe\`）。e2e 在本地跑，功能合入 develop 与发版前须全量全绿（见 doc/development.md）。
 #
 # 只声明 branches、不声明 tags，故推 tag 不触发本工作流（出包走 release.yml）。
 name: CI

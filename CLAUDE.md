@@ -69,27 +69,35 @@ npm run test:e2e          # 构建 + 全量 Electron 回归
    再用 daily 检查外围回归；daily 不能代替新功能自己的相关用例。
 4. 默认用含构建的 e2e 命令；只有确认 `out/` 对应当前源码才用 `:nobuild`。
    类型检查与 Vitest 不更新 `out/`。筛选、fixture、真机配置见 [development](doc/development.md)。
-5. 版本最终验收前 bump `package.json`（版本号唯一来源，UI 由 `__APP_VERSION__` 注入），
-   对最终待合并代码跑 `npm test`、`npm run typecheck` 和含构建的全量 e2e。
-   验收后改代码须重验受影响部分；rebase、冲突解决或公共接线改动后重跑全量，
-   记录验证对应的提交。**合回 main 的分支必须全量 e2e 全绿。**
+5. 关卡按改动去向分级：bugfix 直接提交 develop 前跑 `npm test`、`npm run typecheck`、
+   相关定点 e2e 与 daily；**功能分支合入 develop、发版提交快进 main 前**，对最终代码跑
+   `npm test`、`npm run typecheck` 和含构建的全量 e2e，必须全绿。验收后改代码须重验
+   受影响部分；rebase、冲突解决或公共接线改动后重跑全量，记录验证对应的提交。
 6. SSH / sudo / SFTP 协议变化须补真机 smoke；shim、PATH、安装行为变化须经过真实宿主
    和安装产物验证，断言 stdout/stderr 与退出码，不能只检查文件存在或内容。
    视觉调整须经真人观察，指标达标只算候选结果。
 
 ## 分支、提交与发布
 
-- 新版本从 main 开 `feat/vX.Y.Z`，开工即定版本号，代码和文档在同一分支。
-  一版多个目标逐个完成，通过验证后各自提交，不攒成一个大提交。
+- `main` 只承载已发布状态，每次发版从 `develop` 快进；`develop` 是集成分支，须随时可发布。
+  外部 PR 以 `develop` 为目标；CI 不跑 e2e，涉及跨层接线的 PR 合入前在本地跑对应 e2e。
+- 新功能从 `develop` 开 `feat/<主题>`，代码和文档在同一分支；多个目标逐个完成，
+  通过验证后各自提交，不攒成一个大提交。bugfix 可直接提交到 `develop`。
+- 版本号在发版时按 `Unreleased` 内容定：有新功能升 minor，只有修复升 patch。
+  不从 main 拉 hotfix（main 与 develop 分叉后无法快进）；develop 已有未发布功能时，
+  紧急修复随下一版发布。
 - 提交信息中文，Conventional Commits 风格：`feat:` / `fix(...)` / `test(...)` / `docs(...)`；
   仓库、文档整理或工具链变更用 `chore:`，无需为此 bump 产品版本。
 - CI（GitHub Actions）跑静态检查与三层快速测试，e2e 在本地验收。**提交、合并和发版后
   默认不轮询、不等待 CI/CD 状态**；仅在用户要求查询或排查已知失败时检查。
-- **合回 main 由用户授权**，已有明确授权无须重复确认。合并前 fetch origin；
-  main 是功能分支祖先时快进，有分叉先 rebase 并重新验证，保持线性历史。
+- **合入 develop、快进 main 由用户授权**，已有明确授权无须重复确认。合并前 fetch origin；
+  目标分支是源分支祖先时快进，有分叉先 rebase 并重新验证，保持线性历史。
   合并并推送后删除本地与远程功能分支。
-- **是否发布由用户定**，已有发布授权就完成全链路。仅在 main 上打 tag，
-  tag 必须等于 `v<package.json 版本>`；推 tag 后由 CD 异步产包，不自动等待发布完成。
+- **是否发布由用户定**，已有发布授权就完成全链路：在 develop 上做 release 提交
+  （bump `package.json`，它是版本号唯一来源，UI 由 `__APP_VERSION__` 注入；
+  `Unreleased` 归入本版小节），全量验收后 main 快进到该提交。仅在 main 上打 tag，
+  tag 必须等于 `v<package.json 版本>`；CD 截取 CHANGELOG 本版小节作 Release 说明，
+  推 tag 后异步产包，不自动等待发布完成。
   报告时区分“已推送发布 tag”和“安装包已发布”；用户要求确认产物时再检查 Release 附件。
   改动打包或工作流前阅读 [development 的发布说明](doc/development.md#发布与构建维护)
   及配置旁注释，保留 CLI 依赖的 runAsNode fuse。
@@ -115,7 +123,8 @@ npm run test:e2e          # 构建 + 全量 Electron 回归
 
 ## 文档维护
 
-- 用户可见的变化写进 [CHANGELOG](CHANGELOG.md)（先记在 `Unreleased`，发版时归入版本号）；
+- 用户可见的变化写进 [CHANGELOG](CHANGELOG.md)（先记在 `Unreleased`，发版时归入版本号，
+  该小节原样作为 Release 说明，条目写成面向用户的一句话）；
   [roadmap](doc/roadmap.md) 只列后续方向，完成的条目移除。
 - 专题设计只描述**当前**设计、约束与必要理由：设计变化时直接改写对应章节，
   不写版本标注、演进过程、踩坑故事或验证流水；代码注释引用的章节号保持稳定。

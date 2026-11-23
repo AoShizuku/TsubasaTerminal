@@ -59,9 +59,11 @@ npm run dev         # 开发模式，热更新
 
 ## 提交与 PR
 
+- 从 `develop` 签出开发，PR 以 `develop` 为目标；`main` 只承载已发布版本。
 - 一个 PR 做一件事；提交信息使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)
   风格，如 `feat: …`、`fix(sftp): …`、`docs: …`、`test: …`、`chore: …`，中英文均可。
-- 用户可见的变化请在 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 小节补一行。
+- 用户可见的变化请在 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 小节补一行；
+  发版时这些条目原样进入 Release 说明，请写成面向用户的一句话。
 - 界面改动请附截图；视觉调整最终需要真人观察确认。
 
 提交即表示你同意以 [MIT 许可](LICENSE) 发布你的贡献。

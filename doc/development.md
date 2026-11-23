@@ -145,12 +145,19 @@ guard 校验 tag 被 main 包含、名称等于 `v<package.json 版本>`，且 C
 同时保存 Actions 制品兜底。Release 说明由 [release-notes.mjs](../scripts/release-notes.mjs)
 从 CHANGELOG 截取该版小节，后附未签名提示；重推同名 tag 时替换附件并刷新说明。
 
+分支模型：`main` 只承载已发布状态，每次发版从 `develop` 快进；`develop` 是集成分支，
+须随时可发布，外部 PR 以它为目标。新功能在 `feat/<主题>` 上开发，全量 e2e 全绿后
+rebase 并快进合入 develop；bugfix 直接提交 develop，提交前跑快速测试、相关 e2e 与 daily。
+不从 main 拉 hotfix，否则 main 与 develop 分叉，下次发版无法快进。
+
 发布步骤：
 
-1. bump `package.json` 版本（版本号唯一来源，UI 由 `__APP_VERSION__` 注入），
-   在 [CHANGELOG.md](../CHANGELOG.md) 写本版条目；
-2. 对待发布代码跑 `npm test`、`npm run typecheck` 和含构建的全量 e2e；
-3. 合入 main 后在 main 上打 `v<版本>` tag 并推送。
+1. 在 develop 上做 release 提交：按 `Unreleased` 内容定版本号（有新功能升 minor，
+   只有修复升 patch），bump `package.json`（版本号唯一来源，UI 由 `__APP_VERSION__` 注入）；
+   在 [CHANGELOG.md](../CHANGELOG.md) 把 `Unreleased` 下的条目归入 `## [X.Y.Z] - YYYY-MM-DD`，
+   其上留一个空的 `## [Unreleased]`，文末补 `[X.Y.Z]:` Release 链接；
+2. 对该提交跑 `npm test`、`npm run typecheck` 和含构建的全量 e2e；
+3. main 快进到该提交，在 main 上打 `v<版本>` tag，推送 develop、main 与 tag。
 
 改构建配置时，保留下列接缝；原因详见相应配置旁注释：
 
