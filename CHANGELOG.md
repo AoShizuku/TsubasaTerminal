@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### 修复
+
+- 卸载时未从用户 PATH 摘除 CLI 目录 `%LOCALAPPDATA%\tsubasa\bin`，留下一条失效条目
+
 ## [1.0.0] - 2026-11-16
 
 首个公开版本。

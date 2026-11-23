@@ -17,7 +17,7 @@
     ; RMDir 只在目录为空时成功——家族里还有 tsubasa-mysql / tsubasa-redis 时不动
     RMDir "$LOCALAPPDATA\tsubasa\bin"
     IfFileExists "$LOCALAPPDATA\tsubasa\bin\*.*" skipPathCleanup 0
-      nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d = Join-Path $$env:LOCALAPPDATA (Join-Path ''tsubasaterminal'' ''bin''); $$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(''Environment'', $$true); if ($$k) { $$v = [string]$$k.GetValue(''Path'', '''', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); try { $$kind = $$k.GetValueKind(''Path'') } catch { $$kind = [Microsoft.Win32.RegistryValueKind]::ExpandString }; $$p = @($$v -split '';'' | Where-Object { $$_ -ne '''' -and $$_.TrimEnd([char]92) -ine $$d.TrimEnd([char]92) }); $$k.SetValue(''Path'', ($$p -join '';''), $$kind); $$k.Close() }"'
+      nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d = Join-Path $$env:LOCALAPPDATA (Join-Path ''tsubasa'' ''bin''); $$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(''Environment'', $$true); if ($$k) { $$v = [string]$$k.GetValue(''Path'', '''', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); try { $$kind = $$k.GetValueKind(''Path'') } catch { $$kind = [Microsoft.Win32.RegistryValueKind]::ExpandString }; $$p = @($$v -split '';'' | Where-Object { $$_ -ne '''' -and $$_.TrimEnd([char]92) -ine $$d.TrimEnd([char]92) }); $$k.SetValue(''Path'', ($$p -join '';''), $$kind); $$k.Close() }"'
       Pop $0
     skipPathCleanup:
     ; skill 与 CLI 的握手 token 属用户数据，与 audit.jsonl / hosts.json 同待遇：不删
