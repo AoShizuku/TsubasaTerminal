@@ -187,7 +187,8 @@ test('拖选只读文本后直接打字不丢键：字符回流 composer 并回�
   const page = launched.page
   await connectAndWaitPrompt(page)
 
-  const hint = page.locator('p').filter({ hasText: '然后在这里提问' }).first()
+  // 未配模型服务时 Agent 空态的只读提示
+  const hint = page.locator('p').filter({ hasText: '先在设置中添加模型服务' }).first()
   await dragSelectText(page, hint)
   // 选区还在（不回家），焦点没落进任何输入框——落进去选区当场就被收走了
   expect(await domSelection(page)).not.toBe('')
