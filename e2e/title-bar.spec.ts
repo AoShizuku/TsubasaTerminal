@@ -95,8 +95,8 @@ test('主题通过 preload 更新原生 overlay，按钮安全区随窗口大小
   }
   // 标题栏标识是正式应用图标（v0.14.2 首轮验收：不换成姊妹项目的占位渐变方块）
   const icon = page.locator('[data-testid="title-bar"] img')
-  // Vite 把小 svg 内联成 data URI；认 >_ 那两笔（polyline 72,86 起笔）就是 build/icon.svg
-  await expect(icon).toHaveAttribute('src', /^data:image\/svg\+xml,.*polyline%20points='72,86/)
+  // Vite 把小 svg 内联成 data URI；认 >_ 那两笔（polyline 70,82 起笔）就是 build/icon.svg
+  await expect(icon).toHaveAttribute('src', /^data:image\/svg\+xml,.*polyline%20points='70,82/)
   await expect(icon).toHaveCSS('width', '16px')
   for (const width of [960, 1280]) {
     await app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 600), width)
