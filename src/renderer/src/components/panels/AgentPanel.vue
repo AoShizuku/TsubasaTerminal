@@ -997,8 +997,14 @@ onBeforeUnmount(() => {
       {{ resumeError }}
     </p>
 
-    <!-- 消息流：回溯态渲染重放条目，否则当前对话（同一套组件，回溯"就像当时"） -->
-    <div ref="scrollEl" class="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+    <!-- 消息流：回溯态渲染重放条目，否则当前对话（同一套组件，回溯"就像当时"）。
+         只许纵向滚：单写 overflow-y 时 x 会被算成 auto，一张宽表就能把整条消息流顶出横向滚动；
+         宽内容各自在框里滚（代码块 pre、表格 .md-table） -->
+    <div
+      ref="scrollEl"
+      class="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3"
+      data-testid="agent-messages"
+    >
       <template v-if="reviewMeta">
         <AgentMessageList :items="reviewItems" />
         <p class="pt-1 text-center text-meta text-muted-foreground/70" data-testid="agent-review-footer">

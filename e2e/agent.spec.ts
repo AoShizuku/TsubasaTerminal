@@ -479,4 +479,60 @@ test('Agent 面板 markdown 渲染：加粗/代码块复制按钮/链接确认�
   await expect(page.getByTestId('composer')).toBeVisible()
 })
 
+test('Agent 面板宽表与代码块：数错列的表照常成表、只在表格框内横滚，代码复制按钮骑边不挡字', async () => {
+  const launched = await launchApp([makeHost(ssh.port)], undefined, {
+    llmProfiles: [anthropicProfile()]
+  })
+  app = launched.app
+  const page = launched.page
+  await connectAndWaitPrompt(page)
+
+  await askAgent(page, 'show-wide-table')
+  const md = page.getByTestId('agent-md').last()
+  // 表头 15 列、分隔行 16 列：GFM 判不成表，修正前整张退成满屏竖线的段落
+  await expect(md.locator('.md-table th')).toHaveCount(15)
+  await expect(md.locator('.md-table tbody tr')).toHaveCount(2)
+
+  // 宽表只在自己的框里滚；消息流不出横向滚动（修正前被表格顶出整条横向滚动条）
+  const table = md.locator('.md-table')
+  expect(await table.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeGreaterThan(0)
+  expect(
+    await page.getByTestId('agent-messages').evaluate((el) => el.scrollWidth - el.clientWidth)
+  ).toBe(0)
+  // 单元格里的行内代码不被 break-all 拆成一字一行（表格既然横滚，就不该再挤列）
+  expect(await md.locator('td code').first().evaluate((el) => el.getClientRects().length)).toBe(1)
+
+  // 代码块复制按钮：与消息复制按钮同位，骑在框的右上沿，不落进内容区挡代码
+  const pre = md.locator('.md-code pre')
+  const codeCopy = md.locator('button[data-md-copy]')
+  const msgCopy = page.getByTestId('agent-msg-copy').last()
+  await pre.hover()
+  await expect(codeCopy).toHaveCSS('opacity', '1')
+  // 两颗「复制」不同时亮：指针在代码块上只亮它自己的
+  await expect(msgCopy).toHaveCSS('opacity', '0')
+  const btn = (await codeCopy.boundingBox())!
+  const frame = (await pre.boundingBox())!
+  // 骑在上沿：按钮上半截探出框外
+  expect(btn.y).toBeLessThan(frame.y)
+  // 首行是顶到右沿的长横线，按钮底边仍在它的字形之上
+  const firstLineTop = await pre
+    .locator('code')
+    .evaluate((el) => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      return range.getClientRects()[0].top
+    })
+  expect(btn.y + btn.height).toBeLessThanOrEqual(firstLineTop)
+  // 代码块打头时与消息复制按钮上下错开，不叠在一处
+  const msgBox = (await msgCopy.boundingBox())!
+  expect(btn.y).toBeGreaterThanOrEqual(msgBox.y + msgBox.height - 0.5)
+
+  // 被隐藏的消息复制按钮不拦点击
+  await codeCopy.click()
+  await expect(codeCopy).toHaveText('已复制')
+  // 指针离开代码块，消息复制按钮照常出现
+  await table.hover()
+  await expect(msgCopy).toHaveCSS('opacity', '1')
+})
+
 // 轮数熔断 v0.8.1 改为审批面 y/N 续跑，用例迁移至 approval.spec.ts

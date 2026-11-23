@@ -97,7 +97,7 @@ async function confirmOpenLink(url: string): Promise<void> {
   <template v-for="(item, i) in items" :key="i">
     <div
       v-if="item.kind === 'user'"
-      class="group relative ml-6 rounded-md bg-primary/10 px-2.5 py-1.5 text-body leading-relaxed"
+      class="group relative ml-6 break-words rounded-md bg-primary/10 px-2.5 py-1.5 text-body leading-relaxed"
       data-testid="agent-user-msg"
     >
       <button
@@ -128,7 +128,7 @@ async function confirmOpenLink(url: string): Promise<void> {
         <button
           v-if="item.text"
           type="button"
-          class="absolute -top-2 right-0 z-10 rounded border bg-card px-1.5 py-0.5 text-badge leading-none text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+          class="msg-copy absolute -top-2 right-0 z-10 rounded border bg-card px-1.5 py-0.5 text-badge leading-none text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
           data-testid="agent-msg-copy"
           @click="copyMessage(i, item.text)"
         >
@@ -171,17 +171,16 @@ async function confirmOpenLink(url: string): Promise<void> {
 
 <!-- md-body 内容来自 v-html，scoped 作用不到，这里用普通样式块 -->
 <style>
-.md-body > *:first-child {
-  margin-top: 0;
-}
-.md-body > *:last-child {
-  margin-bottom: 0;
+.md-body {
+  /* 正文里的超长 token（无空格路径等）到边就折；break-word 不改最小内容宽度，
+     表格单元格不会被它压成一字一行，宽表照样交给 .md-table 自己滚 */
+  overflow-wrap: break-word;
 }
 .md-body p,
 .md-body ul,
 .md-body ol,
 .md-body blockquote,
-.md-body table {
+.md-body .md-table {
   margin: 0.375rem 0;
 }
 .md-body h1,
@@ -214,7 +213,8 @@ async function confirmOpenLink(url: string): Promise<void> {
 }
 .md-body .md-code {
   position: relative;
-  margin: 0.375rem 0;
+  /* 上沿多留出复制按钮探出去的半截，不压上一段的字 */
+  margin: 0.75rem 0 0.375rem;
 }
 .md-body .md-code pre {
   overflow-x: auto;
@@ -228,10 +228,11 @@ async function confirmOpenLink(url: string): Promise<void> {
   padding: 0;
   word-break: normal;
 }
+/* 与消息复制按钮同一位置：骑在框的右上沿，不落进内容区挡代码 */
 .md-body .md-copy {
   position: absolute;
-  top: 0.25rem;
-  right: 0.25rem;
+  top: -0.5rem;
+  right: 0;
   z-index: 1;
   border: 1px solid var(--border);
   border-radius: 0.25rem;
@@ -239,7 +240,8 @@ async function confirmOpenLink(url: string): Promise<void> {
   color: var(--muted-foreground);
   font-size: var(--fs-10);
   line-height: 1;
-  padding: 0.1875rem 0.375rem;
+  /* 尺寸同消息复制按钮（text-badge leading-none px-1.5 py-0.5） */
+  padding: 0.125rem 0.375rem;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -248,6 +250,12 @@ async function confirmOpenLink(url: string): Promise<void> {
 }
 .md-body .md-copy:hover {
   color: var(--foreground);
+}
+/* 指针在代码块上只亮代码块自己的复制，两颗「复制」不同时出现。
+   有意不进 @layer：要压过按钮上 group-hover:opacity-100 这条 utility */
+.group:has(.md-code:hover) > .msg-copy {
+  opacity: 0;
+  pointer-events: none;
 }
 .md-body a {
   color: var(--primary);
@@ -261,6 +269,10 @@ async function confirmOpenLink(url: string): Promise<void> {
   padding-left: 0.5rem;
   color: var(--muted-foreground);
 }
+/* 侧栏窄：宽表只在自己的框里横向滚动，不把整条消息流顶出滚动条 */
+.md-body .md-table {
+  overflow-x: auto;
+}
 .md-body table {
   border-collapse: collapse;
   /* 表格内容同列表层 */
@@ -271,8 +283,24 @@ async function confirmOpenLink(url: string): Promise<void> {
   border: 1px solid var(--border);
   padding: 0.125rem 0.375rem;
 }
+.md-body th {
+  /* 表头不折行：窄列的中文列名不再逐字竖排，也给该列定下最小宽度 */
+  white-space: nowrap;
+}
+.md-body td :is(code, a) {
+  /* break-all 会把单元格最小宽度压到一个字：表格已交给 .md-table 横滚，路径、命令不拆 */
+  word-break: normal;
+}
 .md-body hr {
   margin: 0.5rem 0;
   border-color: var(--border);
+}
+/* 首尾不留外边距，放在最后压过上面各块的 margin。代码块例外：
+   复制按钮骑在上沿，排第一个也要留出探出去的半截，不和消息复制按钮叠在一处 */
+.md-body > :first-child:not(.md-code) {
+  margin-top: 0;
+}
+.md-body > :last-child {
+  margin-bottom: 0;
 }
 </style>

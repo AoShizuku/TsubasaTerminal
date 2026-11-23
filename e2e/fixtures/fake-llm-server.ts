@@ -116,6 +116,19 @@ function plan(intent: string, fullUserText: string, toolResult: string | null): 
         '另见 [显示设置](ms-settings:display)。\n\n```bash\ndf -h /\n```'
     }
   }
+  if (intent.includes('show-wide-table')) {
+    // 代码块打头（复制按钮与消息复制按钮相邻的位置），后跟一张数错列的宽表：
+    // 表头 15 列、分隔行 16 列，是模型写宽表的真实失误形状
+    const cols = ['主机', '地址', '系统', '内核', '用户', 'Shell', '部署', '服务管理',
+      '中间件目录', '程序目录', '负载', '内存', '磁盘', '巡检时间', '备注']
+    const row = (n: number): string =>
+      `| web${n} | 203.0.113.${n} | Debian 12 | 6.1.0-25 | deploy | bash | docker compose | ` +
+      `systemd | \`/srv/compose\` | /srv/app | 0.4${n} | 3.1G / 16G | 38% | 2026-10-21 17:42 | 正常 |`
+    return {
+      text: '```text\n+' + '-'.repeat(40) + '+\n```\n\n' +
+        `| ${cols.join(' | ')} |\n` + '|---:|' + '---|'.repeat(15) + '\n' + row(1) + '\n' + row(2)
+    }
+  }
   if (intent.includes('run-whoami')) {
     return {
       tool: { name: 'exec', input: { command: 'whoami', risk: 'low', reason: '查看当前用户' } }
