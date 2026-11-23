@@ -98,11 +98,5 @@ const themeBg = computed(
       :session-id="activeSession.id"
       :class="{ hidden: !composerVisible }"
     />
-    <div
-      v-else
-      class="flex h-24 shrink-0 items-center justify-center border-t bg-background"
-    >
-      <span class="text-list text-muted-foreground/60">连接主机后在此输入命令</span>
-    </div>
   </main>
 </template>
