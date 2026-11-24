@@ -12,10 +12,16 @@ test.afterEach(async () => { await app?.close(); app = undefined })
 
 interface Rect { x: number; y: number; width: number; height: number }
 
-/** 分数缩放下 DIP ↔ 物理像素往返有舍入，容忍 1 个逻辑像素 */
+/**
+ * 分数缩放下 DIP ↔ 物理像素往返向外取整，实测尺寸比请求值大一两个逻辑像素
+ * （175% 主屏上 1100×700 量回 1102×702），容忍 2。漂移靠落盘值精确断言把关，不靠这里
+ */
+const ROUNDING_SLACK = 2
+
 function expectNear(actual: Rect, expected: Partial<Rect>): void {
   for (const [key, value] of Object.entries(expected) as Array<[keyof Rect, number]>) {
-    expect(Math.abs(actual[key] - value), `${key}: ${actual[key]} vs ${value}`).toBeLessThanOrEqual(1)
+    expect(Math.abs(actual[key] - value), `${key}: ${actual[key]} vs ${value}`)
+      .toBeLessThanOrEqual(ROUNDING_SLACK)
   }
 }
 
