@@ -1093,12 +1093,15 @@ test('use 自动开会话：无会话时开标签页连接并返回建联包；�
   await waitForPipe(bench)
 
   // 不手动连接：use 直接触发自动开会话（右边自己长出 tab）
+  await expect(bench.page.getByTestId('cli-tab')).toHaveAttribute('data-state', 'inactive')
   const used = await runCli(bench, ['use', 'web1-fake', '--agent', 'cc'])
   expect(used.code).toBe(0)
   expect(used.stderr).toContain('自动打开标签页')
   expect(used.stdout).toContain('[主机档案]')
   expect(used.stdout).toContain('Ubuntu 22.04 Fake LTS')
   await expect(bench.page.getByTestId('session-tab')).toHaveCount(1)
+  // 外部 agent 开的标签页落在 CLI 栏
+  await expect(bench.page.getByTestId('cli-tab')).toHaveAttribute('data-state', 'active')
 
   // 绑定已建立：直接 exec 可用
   const ok = await runCli(bench, ['exec', '--agent', 'cc', 'whoami'])

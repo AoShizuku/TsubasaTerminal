@@ -258,6 +258,39 @@ test('布局记忆：折叠、宽度与右栏 tab 跨重启保持，首帧不按
   await expect.poll(() => settingsOf(second.userDataDir).leftPaneOpen).toBe(true)
 })
 
+test('右栏按标签页记忆栏位：新标签页沿用当前栏，切标签各自恢复，关标签后下一个按自己的记忆', async () => {
+  const launched = await launchApp([makeHost(server.port)])
+  app = launched.app
+  const page = launched.page
+  const expectRightTab = (name: string) =>
+    expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('data-state', 'active')
+
+  await page.getByTestId('host-item').dblclick()
+  await expect.poll(() => activeTerminalText(page)).toContain('test@fake:~$')
+  await page.getByRole('tab', { name: '文件', exact: true }).click()
+
+  // 第二个标签页：开的时候不切栏，沿用文件；随后改停 Agent
+  await page.getByTestId('host-item').dblclick()
+  await expect(page.getByTestId('session-tab')).toHaveCount(2)
+  await expect.poll(() => activeTerminalText(page)).toContain('test@fake:~$')
+  await expectRightTab('文件')
+  await page.getByRole('tab', { name: 'Agent', exact: true }).click()
+
+  // Ctrl+数字与点标签两条切换路径都恢复各自的栏
+  await page.keyboard.press('Control+1')
+  await expectRightTab('文件')
+  await page.keyboard.press('Control+2')
+  await expectRightTab('Agent')
+  await page.getByTestId('session-tab').first().click()
+  await expectRightTab('文件')
+
+  // 关掉停在文件的第一个：落到第二个，它仍停在 Agent；settings 镜像跟着显示栏
+  await page.getByTestId('close-tab').first().click()
+  await expect(page.getByTestId('session-tab')).toHaveCount(1)
+  await expectRightTab('Agent')
+  await expect.poll(() => settingsOf(launched.userDataDir).rightPanelTab).toBe('agent')
+})
+
 test('拖把手不动焦点：Agent 输入框持焦时调宽右栏，焦点仍在输入框', { tag: '@headed' }, async () => {
   const launched = await launchApp([makeHost(server.port)])
   app = launched.app

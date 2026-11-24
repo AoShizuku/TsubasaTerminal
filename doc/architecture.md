@@ -134,7 +134,9 @@ Agent / Conversation 管实时事件与回溯；Experience 管经验编辑；Ui 
 Cli 按会话存外部 agent 的活动条目，供右栏 CLI 栏只读展示（与 Agent 工具卡共用 `ToolCard.vue`）。
 侧栏显隐、宽度与右栏 tab 的运行期真值在 `useUiStore`，settings.json 的同名字段只是
 持久化镜像：启动由 `bootstrapSettings`（同步 `settings:get-sync`）回填，提交点全量写回；
-其他模块不从 settings 读布局。隐藏保挂载；宽度是偏好值，窄窗口由 flex 收缩让位；
+其他模块不从 settings 读布局。右栏 tab 另按 sessionId 记运行期记忆（不落盘、关会话即清）：
+选择当场写进所绑会话，App 以同步 watch 把活动会话绑给 `useUiStore`，新会话沿用当前栏；
+`use` 自动开的会话由 App 指定落 CLI 栏。隐藏保挂载；宽度是偏好值，窄窗口由 flex 收缩让位；
 拖拽期间 `paneDragging` 抑制 TerminalView 的 fit，松手补一次。
 几何常量与夹值见 `shared/layout.ts`，把手是 `ui/Sash.vue`。
 

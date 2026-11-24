@@ -11,11 +11,13 @@ import { useAppStore } from './composables/useAppStore'
 import { bootstrapSettings, useSettingsStore } from './composables/useSettingsStore'
 import {
   beginPaneDrag,
+  bindRightPanelSession,
   endPaneDrag,
   hydrateLayout,
   movePaneDrag,
   resetPaneWidth,
   revealRightPane,
+  setRightPanelTabFor,
   toggleLeftPane,
   toggleRightPane,
   useUiStore
@@ -72,6 +74,13 @@ hydrateLayout(bootstrapSettings())
  * 父的 setup 则严格早于所有子的 setup 与 mount，注册不会迟到。
  */
 setActiveSessionProvider(() => activeSessionId.value)
+
+/**
+ * 右栏按标签页记忆栏位：活动会话一变就把右栏绑到它身上（useUiStore 不反向 import
+ * useAppStore，由这里装配）。sync 而不是默认的 pre：活动会话已变、绑定还没跟上的
+ * 空档里若有人切栏，选择会记进上一个会话。排在 hydrateLayout 之后，新会话沿用的是回填后的栏。
+ */
+watch(activeSessionId, (id) => bindRightPanelSession(id), { immediate: true, flush: 'sync' })
 
 // L3 触发闸：native 无 ghost 宿主、TUI 态 composer 隐藏，都不发请求
 setSuggestGate((sessionId) => {
@@ -372,6 +381,9 @@ function onOpenSessionRequest(requestId: string, hostId: string): void {
     return
   }
   const sessionId = openSession(host)
+  // 外部 agent 开的标签页落在 CLI 栏：它接下来的命令都列在那里。只切栏，右栏收着就不展开
+  // ——收起是用户的选择。总开关在请求途中被关掉时不切
+  if (settings.value?.cliBridgeEnabled === true) setRightPanelTabFor(sessionId, 'cli')
   const deadline = Date.now() + OPEN_WATCH_MS
   const timer = setInterval(() => {
     const session = sessionList.value.find((s) => s.id === sessionId)

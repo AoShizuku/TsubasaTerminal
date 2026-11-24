@@ -17,11 +17,13 @@ const ui = vi.hoisted(() => ({}) as { rightPanelTab: Ref<string>; rightPaneOpen:
 const app = vi.hoisted(() => ({}) as { activeSessionId: Ref<string | null>; activeSession: Ref<unknown> })
 const store = vi.hoisted(() => ({}) as { settings: Ref<{ cliBridgeEnabled: boolean } | null> })
 
-vi.mock('@/composables/useUiStore', async () => {
-  const { ref } = await import('vue')
-  ui.rightPanelTab = ref('agent')
-  ui.rightPaneOpen = ref(true)
-  return { useUiStore: () => ui }
+// 栏位用真 store：总开关关掉时的退回走的是 useUiStore.retreatFromCliTab，换成假的就只测了替身
+vi.mock('@/composables/useUiStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/composables/useUiStore')>()
+  const real = actual.useUiStore()
+  ui.rightPanelTab = real.rightPanelTab
+  ui.rightPaneOpen = real.rightPaneOpen
+  return actual
 })
 
 vi.mock('@/composables/useAppStore', async () => {
@@ -34,7 +36,8 @@ vi.mock('@/composables/useAppStore', async () => {
 vi.mock('@/composables/useSettingsStore', async () => {
   const { ref } = await import('vue')
   store.settings = ref({ cliBridgeEnabled: true })
-  return { useSettingsStore: () => store }
+  // 切栏即持久化：写盘本身与本用例无关，接住即可
+  return { useSettingsStore: () => store, updateSettings: async () => store.settings.value }
 })
 
 // 右栏另两栏与本用例无关，换成空壳（它们各自拖着一整串 store）

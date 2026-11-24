@@ -12,7 +12,7 @@ import CliPanel from './panels/CliPanel.vue'
 import FilePanel from './panels/FilePanel.vue'
 import { useAppStore } from '@/composables/useAppStore'
 import { useSettingsStore } from '@/composables/useSettingsStore'
-import { useUiStore } from '@/composables/useUiStore'
+import { retreatFromCliTab, useUiStore } from '@/composables/useUiStore'
 import { cliUnread } from '@/composables/useCliStore'
 
 const { rightPanelTab } = useUiStore()
@@ -25,8 +25,9 @@ const cliEnabled = computed(() => settings.value?.cliBridgeEnabled === true)
 /** 新条目到达而用户停在别的栏：标签上亮一个点，不替用户切栏 */
 const cliDot = computed(() => rightPanelTab.value !== 'cli' && cliUnread(activeSessionId.value))
 
+// 总开关关掉：当前栏与各标签页记着的 CLI 栏一并退回 Agent
 watch(cliEnabled, (on) => {
-  if (!on && rightPanelTab.value === 'cli') rightPanelTab.value = 'agent'
+  if (!on) retreatFromCliTab()
 })
 </script>
 

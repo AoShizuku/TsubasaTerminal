@@ -10,6 +10,7 @@ import {
 import { disposeAgentSession } from './useAgentStore'
 import { useSettingsStore } from './useSettingsStore'
 import { disposeSuggest } from './useSuggestStore'
+import { forgetRightPanelSession } from './useUiStore'
 import { confirmDialog } from '@/lib/confirm'
 import { disposeRemoteContext, prefetchRemoteContext } from '@/lib/remoteContext'
 
@@ -119,6 +120,7 @@ function closeSession(id: string): void {
   disposeAgentSession(id)
   disposeRemoteContext(id)
   disposeSuggest(id)
+  forgetRightPanelSession(id)
   sessions.value.splice(index, 1)
   if (activeSessionId.value === id) {
     const next = sessions.value[Math.min(index, sessions.value.length - 1)]
