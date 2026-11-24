@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
 ### 新增
 
 - 右栏新增「CLI」栏（开启 CLI 通道时出现）：逐条列出外部 agent 经 tsubasa-ssh 在当前会话执行的命令与上传，含完整命令、意图和审批结果
@@ -62,4 +64,5 @@
 
 - 多套明暗终端配色，界面外壳随配色派生；界面字号与行高密度可调
 
+[1.1.0]: https://github.com/AoShizuku/TsubasaTerminal/releases/tag/v1.1.0
 [1.0.0]: https://github.com/AoShizuku/TsubasaTerminal/releases/tag/v1.0.0

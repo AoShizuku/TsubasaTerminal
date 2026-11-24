@@ -1,7 +1,7 @@
 {
   "name": "tsubasaterminal",
   "productName": "Tsubasa Terminal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Tsubasa Terminal — AI-assisted SSH client with a hard command gate and human approval",
   "main": "./out/main/index.js",
   "author": "AoShizuku",
